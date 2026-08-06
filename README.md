@@ -61,5 +61,5 @@ clients remotely.
 **Open to:** freelance projects · automation consulting · 
 remote collaboration
 
-📧 [your email]  
-💼 [your LinkedIn URL]
+📧 syahelgibran11@gmail.com  
+💼 Syahel Gibran Azrofie
