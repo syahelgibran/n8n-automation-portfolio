@@ -1,0 +1,1798 @@
+{
+  "name": "CV Screening",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {
+          "dataPropertyAttachmentsPrefixName": "CV_",
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1104,
+        512
+      ],
+      "id": "3c40a582-e042-4de9-b9be-7c037e7ad7de",
+      "name": "Receive Resume",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "uMOCSi4ypopR5Rwj",
+          "name": "Google Account (Gmail)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "169a0bf3-73b7-4e07-9080-92fd7fc4e1e0"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Word Doc"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "dbb700a9-4c6a-4e60-8615-0a48d0556eba",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "d0f51929-55da-414e-8b00-fa40da22d86e",
+                    "leftValue": "={{ $json.mimeType }}",
+                    "rightValue": "text/plain",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Text"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1776,
+        304
+      ],
+      "id": "21606c9b-9760-4e11-8312-07e554f50f63",
+      "name": "File Type"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        0
+      ],
+      "id": "889e35af-b34b-4848-832b-3aa18b7b340a",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "inputDataFieldName": "CV_0",
+        "name": "={{ $json.subject }} Resume",
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "YOUR_DRIVE_FOLDER_ID",
+          "mode": "list",
+          "cachedResultName": "Resume Folder",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/YOUR_DRIVE_FOLDER_ID"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1552,
+        336
+      ],
+      "id": "a5374678-602d-4d18-9360-ba30e99c95e4",
+      "name": "Upload to Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "iv7Inx0k7F0pH7Lr",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.googleapis.com/drive/v2/files/{{ $json.id }}/copy?convert=true&supportsAllDrives=true",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        0
+      ],
+      "id": "e56722ca-e77d-4479-a68d-b594128984bd",
+      "name": "Convert Word to Docs",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "iv7Inx0k7F0pH7Lr",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "application/pdf"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2224,
+        0
+      ],
+      "id": "f69e47ad-d278-451e-9238-ee9fbff69b71",
+      "name": "Get Doc",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "iv7Inx0k7F0pH7Lr",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.file_id_jd }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        3568,
+        240
+      ],
+      "id": "c28774d0-081c-49c5-ab24-b809bd891120",
+      "name": "Get Job Description",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "iv7Inx0k7F0pH7Lr",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        3792,
+        240
+      ],
+      "id": "37b1bedc-ba34-4bb5-9f29-496fd5bef8c5",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=CV Kandidat:\n\n{{ $('Code in JavaScript').item.json.resume }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=# Gambaran Umum \nAnda adalah seorang pakar rekrutmen dan Penilai Senior. Anda sedang mengevaluasi kandidat untuk posisi {{ $('Code in JavaScript').item.json.posisi_dilamar }}. Tugas Anda adalah membandingkan Riwayat Hidup (CV) kandidat dengan Deskripsi Pekerjaan yang diberikan, lalu mengekstrak data dan memberikan analisis objektif tanpa bias.\nFokuslah secara khusus pada keterampilan, kualifikasi teknis, dan tanggung jawab inti yang paling relevan dengan posisi {{ $('Code in JavaScript').item.json.posisi_dilamar }} tersebut. Jangan membuat asumsi di luar teks yang diberikan.\n\n# Panduan Output & Logika Penilaian \nOutput Anda harus berupa format data terstruktur (JSON) yang berisi parameter berikut:\n\n1. Kekuatan Kandidat: Daftar spesifik kualifikasi dan keterampilan relevan yang dimiliki kandidat untuk posisi {{ $('Code in JavaScript').item.json.posisi_dilamar }} (merujuk pada bukti aktual dari resume).\n\n2. Kelemahan Kandidat: Daftar spesifik kesenjangan pengalaman atau keterampilan kandidat berdasarkan deskripsi pekerjaan yang diberikan.\n\n3. Faktor Risiko: Berikan skor risiko (Rendah / Sedang / Tinggi) beserta penjelasan skenario terburuk jika kandidat ini diterima (misal: kesalahan operasional, lambatnya adaptasi teknis, atau kerugian proyek).\n\n4. Faktor Keuntungan (Reward): Berikan skor keuntungan (Rendah / Sedang / Tinggi) beserta skenario terbaik (misal: efisiensi kerja meningkat, inovasi baru, atau pencapaian target lebih cepat).\n\n5. Alasan Penilaian (Chain of Thought): SEBELUM memberikan angka kesesuaian, Anda WAJIB menjabarkan logika Anda secara objektif dengan mengevaluasi:\n- Kesesuaian pengalaman masa lalu dengan tanggung jawab utama di deskripsi pekerjaan.\n- Ketersediaan keterampilan teknis/alat (tools) dan pengetahuan industri yang relevan.\n- Seberapa besar dampak dari kelemahan kandidat terhadap operasional posisi {{ $('Code in JavaScript').item.json.posisi_dilamar }}.\n\n6. Peringkat Kesesuaian Total (0–10): Gunakan ANGKA BULAT HANYA berdasarkan rubrik baku dan ketat berikut ini:\n0-3 (Sangat Tidak Cocok): Tidak memiliki pengalaman inti yang diminta, atau melenceng jauh dari kriteria mutlak.\n4-6 (Kurang Cocok): Memiliki dasar keterampilan, tetapi memiliki kesenjangan besar di 2 atau lebih syarat mutlak (misal: posisi mewajibkan penguasaan alat/teknologi tingkat lanjut, tetapi kandidat hanya memiliki pengalaman dasar di bidang lain).\n7-8 (Cocok/Potensial): Memenuhi sebagian besar kualifikasi utama. Kesenjangan yang ada sangat minor dan kandidat bisa beradaptasi dengan sedikit masa pelatihan.\n9-10 (Sangat Ideal): Menguasai seluruh kualifikasi teknis/syarat mutlak tanpa celah, siap kerja, dan rekam jejaknya membuktikan ia bisa memberikan Faktor Keuntungan yang sangat tinggi.\n\nATURAN MUTLAK: Jika kandidat TIDAK MEMILIKI keahlian atau pengalaman wajib (mandatory requirements) yang secara spesifik diminta di dalam Deskripsi Pekerjaan, mereka TIDAK BOLEH mendapatkan skor di atas 6, betapapun bagusnya rekam jejak mereka di bidang yang lain.\n\nKandidat dinyatakan MEMENUHI STANDAR (layak diluluskan) jika mencapai skor minimal {{ $('Code in JavaScript').item.json.threshold_skor }}.\n\nPENTING: Tulis SELURUH output, alasan, dan analisis HANYA dalam Bahasa Indonesia.\n\n## Deskripsi Pekerjaan \n{{ $json.text }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        4016,
+        240
+      ],
+      "id": "fc5f15f9-9e7b-4495-bc63-b8ccd6269c0b",
+      "name": "Recruiter Agent"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"name\": \"resume_screening_evaluation\",\n  \"description\": \"Analyzes a candidate's resume against a job description and outputs strengths, weaknesses, risk/reward assessment, and an overall fit score.\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"candidate_strengths\": {\n      \"type\": \"array\",\n      \"description\": \"A list of specific strengths or qualifications that match the job description.\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"candidate_weaknesses\": {\n      \"type\": \"array\",\n      \"description\": \"A list of areas where the candidate falls short or lacks alignment with the job requirements.\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"risk_factor\": {\n      \"type\": \"object\",\n      \"description\": \"An evaluation of the potential risks of hiring this candidate.\",\n      \"properties\": {\n        \"score\": {\n          \"type\": \"string\",\n          \"enum\": [\"Low\", \"Medium\", \"High\"],\n          \"description\": \"The risk level of hiring this candidate.\"\n        },\n        \"explanation\": {\n          \"type\": \"string\",\n          \"description\": \"A brief explanation of the worst-case scenario if the candidate is hired.\"\n        }\n      },\n      \"required\": [\"score\", \"explanation\"]\n    },\n    \"reward_factor\": {\n      \"type\": \"object\",\n      \"description\": \"An evaluation of the potential upside of hiring this candidate.\",\n      \"properties\": {\n        \"score\": {\n          \"type\": \"string\",\n          \"enum\": [\"Low\", \"Medium\", \"High\"],\n          \"description\": \"The reward level of hiring this candidate.\"\n        },\n        \"explanation\": {\n          \"type\": \"string\",\n          \"description\": \"A description of the best-case scenario and whether the candidate is a short-term or long-term fit.\"\n        }\n      },\n      \"required\": [\"score\", \"explanation\"]\n    },\n    \"overall_fit_rating\": {\n      \"type\": \"integer\",\n      \"description\": \"A rating from 0 to 10 indicating how well the candidate matches the job description.\",\n      \"minimum\": 0,\n      \"maximum\": 10\n    },\n    \"justification_for_rating\": {\n      \"type\": \"string\",\n      \"description\": \"A summary explaining why the candidate received the specific fit rating, referencing resume and job description alignment.\"\n    }\n  },\n  \"required\": [\n    \"candidate_strengths\",\n    \"candidate_weaknesses\",\n    \"risk_factor\",\n    \"reward_factor\",\n    \"overall_fit_rating\",\n    \"justification_for_rating\"\n  ]\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        4160,
+        528
+      ],
+      "id": "1aa23c60-2399-4afa-92e2-2c585189dde7",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "text": "={{ $('Code in JavaScript').item.json.resume }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "First Name",
+              "description": "first name of the candidate",
+              "required": true
+            },
+            {
+              "name": "Last Name",
+              "description": "last name of the candidate",
+              "required": true
+            },
+            {
+              "name": "Email Address",
+              "description": "candidate's email address",
+              "required": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        4368,
+        240
+      ],
+      "id": "d4dd965c-771d-47ec-82a8-bfeb9d9ba303",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {
+          "keepSource": "binary"
+        }
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        2224,
+        240
+      ],
+      "id": "5212471a-d03e-4e63-be8c-4a84926032fc",
+      "name": "Extract from File2"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2000,
+        240
+      ],
+      "id": "b3c39f16-fd16-44b0-9b45-b05eb58e6947",
+      "name": "Get PDF",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "iv7Inx0k7F0pH7Lr",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2224,
+        480
+      ],
+      "id": "4b0ff256-9bb7-42aa-94fc-9871144bfa9a",
+      "name": "Get TXT",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "iv7Inx0k7F0pH7Lr",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "destinationKey": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        2448,
+        480
+      ],
+      "id": "0f43b8b5-8979-47e9-b301-bd1fe0b76e38",
+      "name": "Extract from File3"
+    },
+    {
+      "parameters": {
+        "content": "## Resume Collection",
+        "height": 220,
+        "width": 420,
+        "color": 2
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1072,
+        448
+      ],
+      "id": "5cf48782-8b10-4519-ad5b-b66797c64c0a",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## File Type",
+        "height": 284,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1712,
+        256
+      ],
+      "id": "25f6cf67-c93c-4d97-82d8-de2bb3ea0b8f",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Word Doc",
+        "height": 220,
+        "width": 608,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        -64
+      ],
+      "id": "4c7829de-4e08-4413-9ae2-ffdcb5b268d8",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## PDF",
+        "height": 220,
+        "width": 600,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        192
+      ],
+      "id": "c42a8287-68ce-4940-b0e1-6f96bb4d2559",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Text File",
+        "height": 220,
+        "width": 392,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2192,
+        432
+      ],
+      "id": "5d3ca654-f56b-4e1f-9701-8bde5a1090cc",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## Standardize Input\n",
+        "height": 224,
+        "width": 672,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2832,
+        176
+      ],
+      "id": "b541c55e-e94e-46a2-a1f3-64fe5e1ea729",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## Get Job Description",
+        "height": 220,
+        "width": 404
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3536,
+        192
+      ],
+      "id": "8667e530-fe60-4d16-995f-c0ac9e98cbd5",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## Analysis & Information Extract",
+        "height": 224,
+        "width": 848,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        176
+      ],
+      "id": "ffef55fd-db16-4d35-b71b-7e5331dca148",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "## Model & Parser",
+        "height": 220,
+        "width": 308,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4000,
+        448
+      ],
+      "id": "0ecf4418-b60b-47a4-9e37-1f4652a000d7",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Ambil Subjek Email Pelamar SECARA LANGSUNG dari node 'Receive Resume'\nlet subject = $('Receive Resume').first().json.subject || \"\";\nlet subjectLower = subject.toLowerCase();\n\n// 2. Ambil seluruh baris pengaturan dari node Google Sheets sebelumnya\nlet configRows = $input.all(); \n\n// 3. Siapkan variabel penampung default\nlet thresholdSkor = 7; \nlet fileIdJd = \"\";\nlet posisiTerdeteksi = \"General\";\nlet templateLolos = \"\";\nlet templateTolak = \"\";\nlet posisiDitemukan = false;\n\n// 4. Looping untuk membaca tab Config\nfor (let i = 0; i < configRows.length; i++) {\n    let row = configRows[i];\n    let parameter = row.json[\"PARAMETER\"] || \"\";\n    let nilai = row.json[\"NILAI / VALUE\"] || \"\";\n    \n    // Tarik nilai Parameter Umum\n    if (parameter === \"Threshold Skor Minimum\") thresholdSkor = parseFloat(nilai);\n\n    // Tarik Template Email\n    if (parameter.includes(\"Template Email — LOLOS\")) {\n        templateLolos = nilai !== \"\" ? nilai : (configRows[i+1] ? configRows[i+1].json[\"PARAMETER\"] : \"\");\n    }\n    if (parameter.includes(\"Template Email — PENOLAKAN\")) {\n        templateTolak = nilai !== \"\" ? nilai : (configRows[i+1] ? configRows[i+1].json[\"PARAMETER\"] : \"\");\n    }\n\n    // Logika Pencocokan Posisi Aktif\n    let namaPosisi = row.json[\"PARAMETER\"] || \"\";        \n    let pathJd = row.json[\"NILAI / VALUE\"] || \"\";        \n    let status = row.json[\"TIPE DATA\"] || \"\";            \n    let keyword = row.json[\"WAJIB?\"] || \"\";              \n\n    if (status === \"AKTIF\" && keyword !== \"\" && namaPosisi !== \"NAMA POSISI\" && !posisiDitemukan) {\n        let keywordArray = keyword.split(\",\");\n        for (let kw of keywordArray) {\n            let kataKunciBersih = kw.trim().toLowerCase();\n            if (kataKunciBersih !== \"\" && subjectLower.includes(kataKunciBersih)) {\n                posisiTerdeteksi = namaPosisi;\n                fileIdJd = pathJd; \n                posisiDitemukan = true; \n                break; \n            }\n        }\n    }\n}\n\n// [PERBAIKAN] Fallback jika template dari Google Sheets kosong karena merged cell\nif (templateLolos === \"\") {\n    templateLolos = \"Halo [NAMA_KANDIDAT],<br><br>Selamat! Anda dinyatakan LOLOS seleksi awal untuk posisi [NAMA_POSISI] di [NAMA_PERUSAHAAN]. Tim kami akan segera menghubungi Anda untuk tahap wawancara.<br><br>Salam hangat,<br>Tim HR [NAMA_PERUSAHAAN]\";\n}\n\nif (templateTolak === \"\") {\n    templateTolak = \"Halo [NAMA_KANDIDAT],<br><br>Terima kasih telah melamar posisi [NAMA_POSISI] di [NAMA_PERUSAHAAN]. Setelah meninjau profil Anda, mohon maaf kualifikasi Anda saat ini belum sesuai dengan kebutuhan kami.<br><br>Semoga sukses di perjalanan karier Anda selanjutnya.<br><br>Salam,<br>Tim HR [NAMA_PERUSAHAAN]\";\n}\n\n// [PERBAIKAN ERROR] Logika dinamis untuk menarik teks Resume dari jalur yang aktif (Normal atau OCR)\nlet resumeData = \"\";\n\n// Coba ambil dari jalur Normal terlebih dahulu\ntry {\n    resumeData = $('Set Resume Normal').first().json.resume;\n} catch(e) {\n    // Abaikan error jika kandidat tidak melewati jalur normal\n}\n\n// Jika masih kosong, ambil dari jalur OCR\nif (!resumeData) {\n    try {\n        resumeData = $('Set Resume OCR').first().json.resume;\n    } catch(e) {\n        // Abaikan error jika kandidat tidak melewati jalur OCR\n    }\n}\n\n// 5. Kembalikan 1 Item JSON bersih ke node selanjutnya\nreturn {\n    json: {\n        posisi_dilamar: posisiTerdeteksi,\n        file_id_jd: fileIdJd, // <--- KEMBALIKAN ADA _jd DI BELAKANGNYA\n        threshold_skor: thresholdSkor,\n        template_lolos: templateLolos,\n        template_tolak: templateTolak,\n        resume: resumeData \n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3344,
+        240
+      ],
+      "id": "1e86123c-2d15-4551-a605-a8420a5db355",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c95fdba0-e8bf-424e-9260-1a81f3be849c",
+              "leftValue": "={{ $('Recruiter Agent').item.json.output.overall_fit_rating }}",
+              "rightValue": "={{ $('Code in JavaScript').item.json.threshold_skor }}",
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        4720,
+        240
+      ],
+      "id": "45d7ced9-69f2-4acf-b85a-afa4f2d1de63",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "content": "## Tidak Lolos",
+        "height": 220,
+        "width": 400,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4912,
+        64
+      ],
+      "id": "f7cda2d8-389f-4525-a343-9bb24a556f7c",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## Lolos",
+        "height": 220,
+        "width": 400,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4912,
+        304
+      ],
+      "id": "5f1302de-29a7-4d71-b0fa-627fbdb08743",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4o-mini",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        4032,
+        528
+      ],
+      "id": "5de6edf4-fa6a-41c1-bb31-64235a8faeb6",
+      "name": "gpt-4o-mini",
+      "credentials": {
+        "openRouterApi": {
+          "id": "Nwfe1R4EHbfGsHPE",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fcf66e39-b461-4e6e-b226-80659384265d",
+              "leftValue": "={{ $json.text }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2448,
+        240
+      ],
+      "id": "694220fb-41c4-4ec8-a7ae-f63fd9db83dc",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.ocr.space/parse/image",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_OCR_SPACE_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            },
+            {
+              "name": "filetype",
+              "value": "pdf"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2672,
+        336
+      ],
+      "id": "8eeecbd5-0f07-4559-8184-877dfc1d4db2",
+      "name": "Extract Text from PDF"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "21bb33f2-96ea-4c0a-b476-7cd6e70a1edf",
+              "leftValue": "={{ $json.subject }}",
+              "rightValue": "/(lamar|application|apply|cv|resume|hr)/i",
+              "operator": {
+                "type": "string",
+                "operation": "regex"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1328,
+        512
+      ],
+      "id": "68f4cde4-2198-4b0b-8c50-90e262c6460c",
+      "name": "CV atau bukan"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Workflow Config Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1488965304,
+          "mode": "list",
+          "cachedResultName": "⚙️ CONFIG",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=1488965304"
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "specifyRange",
+              "headerRow": 2,
+              "firstDataRow": 3
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3120,
+        240
+      ],
+      "id": "1e659dfa-63c5-4020-9472-7cfcace96380",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7GOcJjZZJAjPFbx5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Information Extractor').item.json.output['Email Address'] }}",
+        "subject": "=Update Lamaran - {{ $('Code in JavaScript').item.json.posisi_dilamar }} - Nama Perusahaan",
+        "message": "=={{ $('Code in JavaScript').item.json.template_tolak.replace('[NAMA_KANDIDAT]', $('Information Extractor').item.json.output['First Name']).replace('[NAMA_POSISI]', $('Code in JavaScript').item.json.posisi_dilamar).replace('[NAMA_PERUSAHAAN]', 'PT Perusahaan Klien') }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        4944,
+        128
+      ],
+      "id": "530dba6e-77b0-4356-86ff-e4ee586e6255",
+      "name": "Send Rejection Email",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "uMOCSi4ypopR5Rwj",
+          "name": "Google Account (Gmail)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Information Extractor').item.json.output['Email Address'] }}",
+        "subject": "=Update Lamaran - {{ $('Code in JavaScript').item.json.posisi_dilamar }} - Nama Perusahaan",
+        "message": "={{ $('Code in JavaScript').item.json.template_lolos.replace('[NAMA_KANDIDAT]', $('Information Extractor').item.json.output['First Name']).replace('[NAMA_POSISI]', $('Code in JavaScript').item.json.posisi_dilamar).replace('[NAMA_PERUSAHAAN]', 'PT Perusahaan Klien') }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        4944,
+        368
+      ],
+      "id": "1f938595-ad15-4c6b-a51b-7c710b54a398",
+      "name": "Send Acceptance Email",
+      "webhookId": "YOUR_WEBHOOK_ID",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "uMOCSi4ypopR5Rwj",
+          "name": "Google Account (Gmail)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "39850575-49bf-45db-a7a5-0e6389fabe28",
+              "name": "alasan_ditolak",
+              "value": "Subjek tidak sesuai format (tidak ada kata HR)",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2000,
+        896
+      ],
+      "id": "eae2f83c-9e70-46c0-ae1f-4ba22dfab601",
+      "name": "Set Alasan - Subjek"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "eaea8e06-1ffd-45c8-bbd2-6973df181a60",
+              "name": "alasan_ditolak",
+              "value": "Format lampiran tidak didukung / Tidak ada CV",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2000,
+        736
+      ],
+      "id": "b71ab305-fda6-451c-8369-b05c855c37bb",
+      "name": "Set Alasan - Format"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Workflow Config Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 606393725,
+          "mode": "list",
+          "cachedResultName": "⚠️ Rejected Intake",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=606393725"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "NO": "==ROW()-2",
+            "TIMESTAMP": "={{ $now.format('dd/MM/yyyy HH:mm') }}",
+            "PENGIRIM EMAIL": "={{ $('Receive Resume').first().json.from.text }}",
+            "SUBJECT EMAIL": "={{ $('Receive Resume').first().json.subject }}",
+            "ALASAN DITOLAK": "={{ $json.alasan_ditolak }}",
+            "FORMAT FILE DIKIRIM": "={{ $('Receive Resume').first().json.binary ? Object.keys($('Receive Resume').first().json.binary) : 'Tidak ada attachment' }}",
+            "TINDAKAN": "Diabaikan otomatis oleh sistem"
+          },
+          "matchingColumns": [
+            "⚠️  REJECTED INTAKE — Email masuk yang tidak memenuhi syarat format/attachment"
+          ],
+          "schema": [
+            {
+              "id": "NO",
+              "displayName": "NO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TIMESTAMP",
+              "displayName": "TIMESTAMP",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PENGIRIM EMAIL",
+              "displayName": "PENGIRIM EMAIL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SUBJECT EMAIL",
+              "displayName": "SUBJECT EMAIL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ALASAN DITOLAK",
+              "displayName": "ALASAN DITOLAK",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "FORMAT FILE DIKIRIM",
+              "displayName": "FORMAT FILE DIKIRIM",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TINDAKAN",
+              "displayName": "TINDAKAN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "locationDefine": {
+            "values": {
+              "headerRow": 2
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2192,
+        816
+      ],
+      "id": "153b1591-3084-4f09-bd2f-3a1afc87289b",
+      "name": "⚠️ Rejected Intake",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7GOcJjZZJAjPFbx5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Workflow Config Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 596932992,
+          "mode": "list",
+          "cachedResultName": "✅ Kandidat Lolos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=596932992"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TIMESTAMP PROSES": "={{ $now.format('dd/MM/yyyy HH:mm') }}",
+            "NO": "==ROW()-2",
+            "NAMA KANDIDAT": "={{ $('Information Extractor').item.json.output['First Name'] }} {{ $('Information Extractor').item.json.output['Last Name'] }}",
+            "EMAIL": "={{ $('Information Extractor').item.json.output['Email Address'] }}",
+            "POSISI DILAMAR": "={{ $('Code in JavaScript').item.json.posisi_dilamar }}",
+            "SKOR AI": "={{ $('Recruiter Agent').item.json.output.overall_fit_rating }}",
+            "KATEGORI": "Lanjut Interview",
+            "RINGKASAN AI": "={{ $('Recruiter Agent').item.json.output.justification_for_rating }}",
+            "KELEBIHAN UTAMA": "={{ $('Recruiter Agent').item.json.output.candidate_strengths.join('\\n') }}",
+            "KEKURANGAN": "={{ $('Recruiter Agent').item.json.output.candidate_weaknesses.join('\\n') }}",
+            "LINK CV (DRIVE)": "={{ $('Upload to Drive').item.json.webViewLink }}",
+            "RISK FACTOR": "=Score: {{ $('Recruiter Agent').item.json.output.risk_factor.score }} \nPenjelasan: {{ $('Recruiter Agent').item.json.output.risk_factor.explanation }}",
+            "REWARD FACTOR": "=Score: {{ $('Recruiter Agent').item.json.output.reward_factor.score }}\nPenjelasan: {{ $('Recruiter Agent').item.json.output.reward_factor.explanation }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "NO",
+              "displayName": "NO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "TIMESTAMP PROSES",
+              "displayName": "TIMESTAMP PROSES",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "NAMA KANDIDAT",
+              "displayName": "NAMA KANDIDAT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "EMAIL",
+              "displayName": "EMAIL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "POSISI DILAMAR",
+              "displayName": "POSISI DILAMAR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "SKOR AI",
+              "displayName": "SKOR AI",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "KATEGORI",
+              "displayName": "KATEGORI",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "RINGKASAN AI",
+              "displayName": "RINGKASAN AI",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "KELEBIHAN UTAMA",
+              "displayName": "KELEBIHAN UTAMA",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "KEKURANGAN",
+              "displayName": "KEKURANGAN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "RISK FACTOR",
+              "displayName": "RISK FACTOR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "REWARD FACTOR",
+              "displayName": "REWARD FACTOR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LINK CV (DRIVE)",
+              "displayName": "LINK CV (DRIVE)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED",
+          "locationDefine": {
+            "values": {
+              "headerRow": 2
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5168,
+        368
+      ],
+      "id": "456d73b9-e88c-4fa2-bd10-a80429d645cb",
+      "name": "✅ Kandidat Lolos",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7GOcJjZZJAjPFbx5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_SPREADSHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Workflow Config Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 61199922,
+          "mode": "list",
+          "cachedResultName": "❌ Tidak Lolos",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit#gid=61199922"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "TIMESTAMP PROSES": "={{ $now.format('dd/MM/yyyy HH:mm') }}",
+            "NAMA KANDIDAT": "={{ $('Information Extractor').item.json.output['First Name'] }} {{ $('Information Extractor').item.json.output['Last Name'] }}",
+            "EMAIL": "={{ $('Information Extractor').item.json.output['Email Address'] }}",
+            "POSISI DILAMAR": "={{ $('Code in JavaScript').item.json.posisi_dilamar }}",
+            "SKOR AI": "={{ $('Recruiter Agent').item.json.output.overall_fit_rating }}",
+            "ALASAN UTAMA AI": "={{ $('Recruiter Agent').item.json.output.justification_for_rating }}",
+            "EMAIL PENOLAKAN TERKIRIM?": "✅ Terkirim",
+            "NO": "==ROW()-2"
+          },
+          "matchingColumns": [
+            "❌  KANDIDAT TIDAK LOLOS — Data otomatis diisi oleh sistem n8n"
+          ],
+          "schema": [
+            {
+              "id": "NO",
+              "displayName": "NO",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "TIMESTAMP PROSES",
+              "displayName": "TIMESTAMP PROSES",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "NAMA KANDIDAT",
+              "displayName": "NAMA KANDIDAT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "EMAIL",
+              "displayName": "EMAIL",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "POSISI DILAMAR",
+              "displayName": "POSISI DILAMAR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SKOR AI",
+              "displayName": "SKOR AI",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ALASAN UTAMA AI",
+              "displayName": "ALASAN UTAMA AI",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "EMAIL PENOLAKAN TERKIRIM?",
+              "displayName": "EMAIL PENOLAKAN TERKIRIM?",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "KETERANGAN",
+              "displayName": "KETERANGAN",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "locationDefine": {
+            "values": {
+              "headerRow": 2
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5168,
+        128
+      ],
+      "id": "36c8a47d-c4be-4880-a4ec-bdc3bcbc63cf",
+      "name": "❌ Tidak Lolos",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7GOcJjZZJAjPFbx5",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Tidak Sesuai Format",
+        "height": 380,
+        "width": 376,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1968,
+        688
+      ],
+      "id": "c79af4d5-7e83-4ef4-9fe1-000ee3c7e198",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d6fd46c1-facb-4396-8d91-9f51532e3593",
+              "name": "resume",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2672,
+        144
+      ],
+      "id": "c87a61f3-591c-431d-8b94-14b95776b8a4",
+      "name": "Set Resume Normal"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7a18cedb-a537-4e7d-a5ca-9dd07e99e028",
+              "name": "resume",
+              "value": "={{ $json.ParsedResults[0].ParsedText }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2880,
+        256
+      ],
+      "id": "c3ff0e4a-e962-48d6-bfc4-48b69a18834f",
+      "name": "Set Resume OCR"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Receive Resume": {
+      "main": [
+        [
+          {
+            "node": "CV atau bukan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Type": {
+      "main": [
+        [
+          {
+            "node": "Convert Word to Docs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get TXT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Alasan - Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to Drive": {
+      "main": [
+        [
+          {
+            "node": "File Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Word to Docs": {
+      "main": [
+        [
+          {
+            "node": "Get Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Doc": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Set Resume Normal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Job Description": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Recruiter Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Recruiter Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recruiter Agent": {
+      "main": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Information Extractor": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get PDF": {
+      "main": [
+        [
+          {
+            "node": "Extract from File2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get TXT": {
+      "main": [
+        [
+          {
+            "node": "Extract from File3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File3": {
+      "main": [
+        [
+          {
+            "node": "Set Resume Normal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Get Job Description",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send Rejection Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Acceptance Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gpt-4o-mini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Recruiter Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Extract Text from PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Resume Normal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text from PDF": {
+      "main": [
+        [
+          {
+            "node": "Set Resume OCR",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV atau bukan": {
+      "main": [
+        [
+          {
+            "node": "Upload to Drive",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Alasan - Subjek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Rejection Email": {
+      "main": [
+        [
+          {
+            "node": "❌ Tidak Lolos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Acceptance Email": {
+      "main": [
+        [
+          {
+            "node": "✅ Kandidat Lolos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Alasan - Subjek": {
+      "main": [
+        [
+          {
+            "node": "⚠️ Rejected Intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Alasan - Format": {
+      "main": [
+        [
+          {
+            "node": "⚠️ Rejected Intake",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Resume Normal": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Resume OCR": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false,
+    "errorWorkflow": "jR6Yp534aKaopwc3"
+  },
+  "versionId": "d765f6bf-a342-4e7e-90ed-fb320e879b1c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "13d351fb157a42e97f58e41594f3e4a6ec9f07d9ecf89755e7e8220bb1061ae3"
+  },
+  "id": "cSSWOMvmk0k16JoK",
+  "tags": []
+}
