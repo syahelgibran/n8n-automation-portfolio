@@ -1,0 +1,344 @@
+{
+  "name": "WarungOS - Hari 7: Ingest Knowledge Base ke Supabase",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## JALANKAN SEKALI SAJA\nWorkflow ini memasukkan isi PDF ke Supabase.\n\n**Menjalankan dua kali = data ganda.**\nSebelum ingest ulang, jalankan di SQL Editor Supabase:\n\n`truncate table warungos_kb;`",
+        "height": 232,
+        "width": 300,
+        "color": 3
+      },
+      "id": "ef4a519c-125f-43d5-91f6-0fefeffa9c73",
+      "name": "Sticky Note 56bce919",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -48,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## PRASYARAT SUPABASE\n1. Jalankan SQL setup (extension vector, tabel warungos_kb, fungsi match_warungos_kb)\n2. Buat kredensial Supabase di n8n: Host = URL project, Service Role Secret = service_role key\n\nNama fungsi match_warungos_kb WAJIB cocok dengan opsi Query Name di kedua node Supabase.",
+        "height": 248,
+        "width": 300,
+        "color": 4
+      },
+      "id": "54219b17-a13f-4b74-8675-107c96ef2db7",
+      "name": "Sticky Note 39d9db85",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## EMBEDDING LEWAT OPENROUTER\nNode Embeddings OpenAI dipakai dengan baseURL diarahkan ke OpenRouter, jadi cukup satu API key.\n\nKredensial: buat OpenAI API baru di n8n, isi API Key dengan kunci OpenRouter (sk-or-v1-...).\n\nModel: openai/text-embedding-3-small, 1536 dimensi. Kalau model diganti, dimensi di tabel Supabase HARUS diganti juga.",
+        "height": 312,
+        "width": 300,
+        "color": 5
+      },
+      "id": "58f4930f-e0be-4cc2-a01b-5f34bf8890bb",
+      "name": "Sticky Note 964836eb",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## UJI OTOMATIS\nSetelah ingest, workflow langsung mencari satu pertanyaan uji.\nKalau node Ringkas Hasil Uji mengeluarkan \"RAG SIAP\" dan cuplikan yang masuk akal, Hari 7 tuntas dan Jalur B siap dibangun.",
+        "height": 200,
+        "width": 300,
+        "color": 6
+      },
+      "id": "78272740-2932-4c6e-b795-80cedb333090",
+      "name": "Sticky Note 25f8956c",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        784,
+        48
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "87860d8a-6307-4be5-9032-fa1046d96296",
+      "name": "Jalankan Ingest Sekali",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "1cTXbO6bdcits8Zl6C4B56Y-hmm0kdjG3",
+          "mode": "list",
+          "cachedResultName": "WarungOS_KnowledgeBase_RAG.pdf",
+          "cachedResultUrl": "https://drive.google.com/file/d/1cTXbO6bdcits8Zl6C4B56Y-hmm0kdjG3/view?usp=drivesdk"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "86c1e7c3-7ca7-49d4-8ae4-b13fc4ebeec7",
+      "name": "Ambil PDF dari Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        224,
+        304
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "7QZhlO3vuETesMWN",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "warungos_kb",
+          "mode": "list",
+          "cachedResultName": "warungos_kb"
+        },
+        "embeddingBatchSize": 100,
+        "options": {
+          "queryName": "match_warungos_kb"
+        }
+      },
+      "id": "680a7236-5838-4de0-afc0-f287c7abf42d",
+      "name": "Simpan ke Supabase",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        480,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "QjBJNnOTfSflqDhQ",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "dataType": "binary",
+        "binaryMode": "specificField",
+        "loader": "pdfLoader",
+        "textSplittingMode": "custom",
+        "options": {
+          "splitPages": true,
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "sumber",
+                "value": "WarungOS Basis Pengetahuan v2.1"
+              },
+              {
+                "name": "produk",
+                "value": "WarungOS"
+              },
+              {
+                "name": "jenis",
+                "value": "help-center"
+              }
+            ]
+          }
+        }
+      },
+      "id": "2148998c-ea15-4dc3-be2f-c1fe41ee57d2",
+      "name": "Pemuat PDF",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        576,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "chunkOverlap": 150,
+        "options": {}
+      },
+      "id": "50bf5dbe-0e89-47b7-901a-f96b38f1bf49",
+      "name": "Pemecah Teks",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        576,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "tableName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "warungos_kb"
+        },
+        "prompt": "Berapa lama proses verifikasi QRIS dan apa yang bisa dipakai sambil menunggu?",
+        "options": {
+          "queryName": "match_warungos_kb"
+        }
+      },
+      "id": "dfd74da3-ae93-49c2-85b5-5a01f569d1e6",
+      "name": "Uji Pencarian",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        944,
+        304
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "sjNE59gLrQHsoSyx",
+          "name": "Supabase account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Merangkum hasil uji pencarian supaya ketahuan RAG-nya sudah hidup atau belum.\nconst potongan = $input.all().map(function (i) { return i.json; });\n\nif (potongan.length === 0) {\n  throw new Error(\"Pencarian tidak mengembalikan apa pun. Cek: tabel warungos_kb kosong, atau nama fungsi match_warungos_kb salah di opsi node.\");\n}\n\nconst ringkas = potongan.map(function (p, idx) {\n  const teks = String(p.pageContent || p.document || \"\").replace(/\\s+/g, \" \").trim();\n  const meta = p.metadata || {};\n  return {\n    peringkat: idx + 1,\n    skor_kemiripan: p.score !== undefined ? Number(p.score).toFixed(4) : \"-\",\n    halaman: meta.loc && meta.loc.pageNumber ? meta.loc.pageNumber : (meta.page_number || \"-\"),\n    sumber: meta.sumber || \"-\",\n    cuplikan: teks.slice(0, 220) + (teks.length > 220 ? \"...\" : \"\")\n  };\n});\n\nreturn [{ json: {\n  status: \"RAG SIAP\",\n  jumlah_potongan_ditemukan: potongan.length,\n  pertanyaan_uji: \"Berapa lama proses verifikasi QRIS dan apa yang bisa dipakai sambil menunggu?\",\n  hasil: ringkas\n} }];"
+      },
+      "id": "3d3d6a23-2d3a-43dc-9036-6c21f026eac1",
+      "name": "Ringkas Hasil Uji",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "dimensions": 1536,
+          "batchSize": 100
+        }
+      },
+      "id": "6619a7d2-00f5-4747-bf67-42178b92a9bb",
+      "name": "Embedding via OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        464,
+        528
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "cIvLlv1dsI3dkzD2",
+          "name": "OpenAI account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Jalankan Ingest Sekali": {
+      "main": [
+        [
+          {
+            "node": "Ambil PDF dari Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil PDF dari Drive": {
+      "main": [
+        [
+          {
+            "node": "Simpan ke Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simpan ke Supabase": {
+      "main": [
+        [
+          {
+            "node": "Uji Pencarian",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pemuat PDF": {
+      "ai_document": [
+        [
+          {
+            "node": "Simpan ke Supabase",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pemecah Teks": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Pemuat PDF",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uji Pencarian": {
+      "main": [
+        [
+          {
+            "node": "Ringkas Hasil Uji",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embedding via OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Uji Pencarian",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "Simpan ke Supabase",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "aiBuilderAssisted": true,
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {}
+}

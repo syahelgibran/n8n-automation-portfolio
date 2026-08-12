@@ -1,0 +1,1213 @@
+{
+  "name": "WarungOS - Jalur A: Mesin Keputusan Harian",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "673ad0f6-136c-4c3d-91fd-42b1a0e70be9",
+      "name": "Jadwal Harian 09:00 WIB",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SHEET_ID = \"157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU\";\nconst TELEGRAM_CHAT_ID = \"8329818531\";\nconst TANGGAL_ACUAN = \"\";\nconst TOTAL_MILESTONE      = 5;\nconst AMBANG_NUDGE_HARI    = 2;\nconst AMBANG_ESKALASI_HARI = 5;\nconst MAKS_NUDGE_DIABAIKAN = 3;\nconst JEDA_NUDGE_HARI      = 2;\nconst JEDA_ESKALASI_HARI   = 7;\nconst HARI_ANGGAP_DIABAIKAN = 1;\nconst AMBANG_NUDGE_TAHAP_3 = 3;\nconst SKOR_TINGGI = 60;\nconst SKOR_SEDANG = 30;\nconst MAKS_PANJANG_PESAN = 600;\nreturn [{ json: {\n  SHEET_ID, TELEGRAM_CHAT_ID, TANGGAL_ACUAN, TOTAL_MILESTONE,\n  AMBANG_NUDGE_HARI, AMBANG_ESKALASI_HARI, MAKS_NUDGE_DIABAIKAN,\n  JEDA_NUDGE_HARI, JEDA_ESKALASI_HARI, HARI_ANGGAP_DIABAIKAN,\n  AMBANG_NUDGE_TAHAP_3, SKOR_TINGGI, SKOR_SEDANG, MAKS_PANJANG_PESAN\n} }];"
+      },
+      "id": "7169d6f0-a7ee-41f7-ad7e-7a74a90a2780",
+      "name": "Konfigurasi",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Pelanggan"
+        },
+        "options": {}
+      },
+      "id": "7fa8b721-22c0-4d03-a693-9297db2ce41b",
+      "name": "Ambil Pelanggan",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        608
+      ],
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Progress_Milestone"
+        },
+        "options": {}
+      },
+      "id": "e0c8ea21-3364-44ce-90f4-596a3013369e",
+      "name": "Ambil Progress",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        608
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log_Interaksi"
+        },
+        "options": {}
+      },
+      "id": "7cf9f150-0633-4d00-ac63-93d6997c4635",
+      "name": "Ambil Log Interaksi",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        896,
+        608
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $(\"Konfigurasi\").first().json;\nfunction keTanggal(nilai) {\n  if (nilai === null || nilai === undefined) return null;\n  const t = String(nilai).trim();\n  const m = t.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);\n  if (!m) return null;\n  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));\n}\nfunction selisihHari(dari, sampai) {\n  if (!dari || !sampai) return null;\n  return Math.floor((sampai.getTime() - dari.getTime()) / 86400000);\n}\nfunction terbaru(rows, jenisLog) {\n  const tgl = rows\n    .filter(function (r) { return String(r.jenis).trim().toLowerCase() === jenisLog; })\n    .map(function (r) { return keTanggal(r.tanggal); })\n    .filter(function (d) { return d !== null; })\n    .sort(function (a, b) { return b.getTime() - a.getTime(); });\n  return tgl.length > 0 ? tgl[0] : null;\n}\nconst ACUAN = keTanggal(cfg.TANGGAL_ACUAN) || keTanggal(new Date().toISOString());\nfunction bersih(rows) {\n  return rows.map(function (i) { return i.json; })\n    .filter(function (r) { return r && String(r.customer_id || \"\").indexOf(\"CUST-\") === 0; });\n}\nconst barisPelanggan = bersih($(\"Ambil Pelanggan\").all());\nconst barisProgress  = bersih($(\"Ambil Progress\").all());\nconst barisLog       = bersih($(\"Ambil Log Interaksi\").all());\nif (barisPelanggan.length === 0) {\n  throw new Error(\"Sheet Pelanggan kosong. Cek SHEET_ID di node Konfigurasi dan nama tab.\");\n}\nconst hasil = [];\nfor (const p of barisPelanggan) {\n  const id = String(p.customer_id).trim();\n  const statusPelanggan = String(p.status_onboarding || \"\").trim().toLowerCase();\n  const ms = barisProgress\n    .filter(function (r) { return String(r.customer_id).trim() === id; })\n    .sort(function (a, b) { return Number(a.milestone_id) - Number(b.milestone_id); });\n  const sudahSelesai = ms.filter(function (m) { return String(m.status).trim().toLowerCase() === \"selesai\"; });\n  const belumSelesai = ms.filter(function (m) { return String(m.status).trim().toLowerCase() !== \"selesai\"; });\n  const jumlahSelesai   = sudahSelesai.length;\n  const tahapMacet      = belumSelesai.length > 0 ? Number(belumSelesai[0].milestone_id) : 0;\n  const namaTahapMacet  = belumSelesai.length > 0 ? String(belumSelesai[0].nama_milestone || \"\") : \"\";\n  const catatanTahap    = belumSelesai.length > 0 ? String(belumSelesai[0].catatan || \"\") : \"\";\n  let hariMacet = 0;\n  for (const m of belumSelesai) { const h = Number(m.hari_di_tahap_ini) || 0; if (h > hariMacet) hariMacet = h; }\n  const milestone4Selesai = ms.some(function (m) {\n    return Number(m.milestone_id) === 4 && String(m.status).trim().toLowerCase() === \"selesai\";\n  });\n  const hariSejakSignupRaw = selisihHari(keTanggal(p.tanggal_signup), ACUAN);\n  const hariSejakSignup = hariSejakSignupRaw === null ? 0 : hariSejakSignupRaw;\n  const logPelanggan = barisLog.filter(function (r) { return String(r.customer_id).trim() === id; });\n  const semuaNudge = logPelanggan.filter(function (r) { return String(r.jenis).trim().toLowerCase() === \"nudge\"; });\n  const nudgeDiabaikan = semuaNudge.filter(function (r) {\n    if (String(r.direspon).trim().toLowerCase() !== \"tidak\") return false;\n    const umur = selisihHari(keTanggal(r.tanggal), ACUAN);\n    return umur === null || umur >= cfg.HARI_ANGGAP_DIABAIKAN;\n  }).length;\n  const nudgeTerakhir = terbaru(logPelanggan, \"nudge\");\n  const hariSejakNudge = nudgeTerakhir ? selisihHari(nudgeTerakhir, ACUAN) : 9999;\n  const eskalasiTerakhir = terbaru(logPelanggan, \"eskalasi\");\n  const hariSejakEskalasi = eskalasiTerakhir ? selisihHari(eskalasiTerakhir, ACUAN) : 9999;\n  let skor = 0;\n  const alasanSkor = [];\n  if (hariSejakSignup > 7 && jumlahSelesai === 0) { skor += 40; alasanSkor.push(\"7+ hari tanpa satu milestone pun (+40)\"); }\n  if (hariMacet >= cfg.AMBANG_ESKALASI_HARI) { skor += 30; alasanSkor.push(\"macet \" + hariMacet + \" hari, sudah level eskalasi (+30)\"); }\n  if (nudgeDiabaikan >= 2) { skor += 20; alasanSkor.push(nudgeDiabaikan + \"x nudge diabaikan (+20)\"); }\n  if (!milestone4Selesai && hariSejakSignup > 14) { skor += 30; alasanSkor.push(\"belum transaksi pertama setelah 14 hari (+30)\"); }\n  let levelRisiko = \"RENDAH\";\n  if (skor >= cfg.SKOR_TINGGI) levelRisiko = \"TINGGI\";\n  else if (skor >= cfg.SKOR_SEDANG) levelRisiko = \"SEDANG\";\n  const ambangNudgeEfektif = tahapMacet === 3 ? cfg.AMBANG_NUDGE_TAHAP_3 : cfg.AMBANG_NUDGE_HARI;\n  let aksi = \"LEWATI\", sebab = \"\";\n  if (statusPelanggan !== \"aktif\") {\n    aksi = \"LEWATI\"; sebab = \"status onboarding sudah \" + statusPelanggan + \", di luar cakupan Jalur A\";\n  } else if (jumlahSelesai >= cfg.TOTAL_MILESTONE) {\n    aksi = \"PENUTUP\"; sebab = \"semua \" + cfg.TOTAL_MILESTONE + \" milestone selesai, onboarding siap ditutup\";\n  } else if (nudgeDiabaikan >= cfg.MAKS_NUDGE_DIABAIKAN) {\n    aksi = \"STOP\"; sebab = nudgeDiabaikan + \"x nudge diabaikan, sistem berhenti mengirim dan menyerahkan ke manusia\";\n  } else if (hariMacet >= cfg.AMBANG_ESKALASI_HARI && hariSejakEskalasi >= cfg.JEDA_ESKALASI_HARI) {\n    aksi = \"ESKALASI\"; sebab = \"macet \" + hariMacet + \" hari di milestone \" + tahapMacet + \", lewat ambang \" + cfg.AMBANG_ESKALASI_HARI + \" hari\";\n  } else if (hariMacet >= cfg.AMBANG_ESKALASI_HARI) {\n    aksi = \"LEWATI\"; sebab = \"sudah dieskalasi \" + hariSejakEskalasi + \" hari lalu, menunggu tindak lanjut CS\";\n  } else if (hariMacet >= ambangNudgeEfektif && hariSejakNudge >= cfg.JEDA_NUDGE_HARI) {\n    aksi = \"NUDGE\"; sebab = \"macet \" + hariMacet + \" hari di milestone \" + tahapMacet;\n  } else if (hariMacet >= ambangNudgeEfektif) {\n    aksi = \"LEWATI\"; sebab = \"masih dalam jeda anti-spam, terakhir dinudge \" + hariSejakNudge + \" hari lalu\";\n  } else if (tahapMacet === 3 && hariMacet >= cfg.AMBANG_NUDGE_HARI) {\n    aksi = \"LEWATI\"; sebab = \"masih masa tenggang verifikasi QRIS (\" + hariMacet + \" dari \" + cfg.AMBANG_NUDGE_TAHAP_3 + \" hari)\";\n  } else {\n    aksi = \"LEWATI\"; sebab = \"progres lancar, tidak perlu diganggu\";\n  }\n  hasil.push({ json: {\n    customer_id: id, nama_bisnis: p.nama_bisnis, no_wa: String(p.no_wa || \"\"),\n    paket: p.paket, status_onboarding: statusPelanggan, aksi, sebab,\n    tahap_macet: tahapMacet, nama_tahap_macet: namaTahapMacet, catatan_tahap: catatanTahap,\n    hari_macet: hariMacet, ambang_nudge_efektif: ambangNudgeEfektif,\n    jumlah_milestone_selesai: jumlahSelesai, milestone4_selesai: milestone4Selesai,\n    hari_sejak_signup: hariSejakSignup, nudge_diabaikan: nudgeDiabaikan,\n    hari_sejak_nudge_terakhir: hariSejakNudge, hari_sejak_eskalasi_terakhir: hariSejakEskalasi,\n    skor_risiko_churn: skor, level_risiko: levelRisiko, alasan_skor: alasanSkor.join(\"; \"),\n    tanggal_acuan: cfg.TANGGAL_ACUAN || \"hari ini\"\n  } });\n}\nreturn hasil;"
+      },
+      "id": "f99861c2-10b5-48e9-8368-73f5c1c4813e",
+      "name": "Mesin Keputusan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.aksi }}",
+                    "rightValue": "LEWATI",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "LEWATI"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.aksi }}",
+                    "rightValue": "NUDGE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "NUDGE"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.aksi }}",
+                    "rightValue": "ESKALASI",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "ESKALASI"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.aksi }}",
+                    "rightValue": "STOP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "STOP"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "combinator": "and",
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.aksi }}",
+                    "rightValue": "PENUTUP",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              },
+              "renameOutput": true,
+              "outputKey": "PENUTUP"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "453c7482-d143-4425-b263-12f3e6c15c50",
+      "name": "Rute Aksi",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1344,
+        544
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c15804e2-ac7d-44d0-9309-2dadfc1b6382",
+      "name": "Tidak Kirim Apapun",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $(\"Konfigurasi\").first().json;\nconst ACUAN = String(cfg.TANGGAL_ACUAN || new Date().toISOString().slice(0, 10));\nconst PANDUAN = {\n  1: \"Buka Pengaturan lalu Profil Outlet. Isi nama outlet, alamat, nomor telepon aktif, dan jam operasional. Langsung aktif tanpa menunggu verifikasi. Perkiraan 5-10 menit.\",\n  2: \"Buka Menu lalu Tambah Item. Butuh minimal 5 item aktif. Kalau item lebih dari 20, pakai fitur Import dari Excel dengan template resmi. Perkiraan 20-60 menit.\",\n  3: \"Buka Pengaturan, Pembayaran, lalu QRIS. Siapkan foto KTP pemilik usaha yang jelas dan tidak terpotong, serta data rekening. Verifikasi memakan 1 hari kerja. Sambil menunggu, Tunai dan Transfer Bank sudah bisa dipakai tanpa verifikasi.\",\n  4: \"Buka Kasir, pilih item, lalu tap Bayar. Cukup transaksi percobaan senilai Rp 1.000 untuk memastikan menu, pembayaran, dan struk berjalan. Perkiraan 5 menit. Ini langkah paling menentukan.\",\n  5: \"Buka Pengaturan, Tim, lalu Undang Anggota. Masukkan nomor WhatsApp staff dan pilih role Kasir, Supervisor, atau Manager. Perkiraan 5 menit.\"\n};\nconst keluaran = [];\nfor (const item of $input.all()) {\n  const d = item.json;\n  const isPenutup = d.aksi === \"PENUTUP\";\n  const panduanTahap = PANDUAN[d.tahap_macet] || \"\";\n  let prompt, pesanCadangan;\n  if (isPenutup) {\n    prompt = [\n      \"Situasi: pelanggan BARU SAJA menyelesaikan seluruh \" + cfg.TOTAL_MILESTONE + \" milestone onboarding.\",\n      \"Nama outlet: \" + d.nama_bisnis, \"Paket langganan: \" + d.paket,\n      \"Lama proses: \" + d.hari_sejak_signup + \" hari sejak daftar.\", \"\",\n      \"Tugas: tulis satu pesan penutup onboarding. Ucapkan selamat, sebut singkat bahwa outlet sudah siap beroperasi penuh, dan beri tahu bahwa mereka bisa membalas pesan ini kapan saja kalau butuh bantuan.\"\n    ].join(\"\\n\");\n    pesanCadangan = \"Halo Kak, selamat! Seluruh \" + cfg.TOTAL_MILESTONE +\n      \" langkah onboarding \" + d.nama_bisnis + \" sudah selesai. Outlet Kakak siap beroperasi penuh. Kalau nanti ada yang mau ditanyakan, balas pesan ini saja ya.\";\n  } else {\n    prompt = [\n      \"Situasi: pelanggan tersendat di satu langkah onboarding.\",\n      \"Nama outlet: \" + d.nama_bisnis, \"Paket langganan: \" + d.paket,\n      \"Progres: \" + d.jumlah_milestone_selesai + \" dari \" + cfg.TOTAL_MILESTONE + \" milestone selesai.\",\n      \"Langkah yang tersendat: milestone \" + d.tahap_macet + \" - \" + d.nama_tahap_macet,\n      \"Sudah tersendat: \" + d.hari_macet + \" hari.\",\n      \"Catatan sistem: \" + (d.catatan_tahap || \"tidak ada\"),\n      \"Riwayat: sudah \" + d.nudge_diabaikan + \" kali dikirimi pesan tanpa balasan.\", \"\",\n      \"Panduan resmi untuk langkah ini (SATU-SATUNYA sumber fakta yang boleh kamu pakai):\",\n      panduanTahap, \"\",\n      \"Tugas: tulis satu pesan WhatsApp singkat untuk membantu pelanggan melewati langkah ini.\"\n    ].join(\"\\n\");\n    pesanCadangan = \"Halo Kak, kami lihat langkah \\\"\" + d.nama_tahap_macet +\n      \"\\\" di \" + d.nama_bisnis + \" belum selesai. Ada kendala yang bisa kami bantu? Balas pesan ini saja ya.\";\n  }\n  keluaran.push({ json: {\n    customer_id: d.customer_id, nama_bisnis: d.nama_bisnis, no_wa: d.no_wa,\n    paket: d.paket, aksi: d.aksi, tahap_macet: d.tahap_macet,\n    nama_tahap_macet: d.nama_tahap_macet, catatan_tahap: d.catatan_tahap,\n    hari_macet: d.hari_macet, jumlah_milestone_selesai: d.jumlah_milestone_selesai,\n    hari_sejak_signup: d.hari_sejak_signup, nudge_diabaikan: d.nudge_diabaikan,\n    skor_risiko_churn: d.skor_risiko_churn, level_risiko: d.level_risiko,\n    sebab: d.sebab, prompt_pengguna: prompt, pesan_cadangan: pesanCadangan,\n    log_id: \"LOG-\" + ACUAN.replace(/-/g, \"\") + \"-\" + String(d.customer_id).replace(\"CUST-\", \"\") + (isPenutup ? \"-P\" : \"-N\"),\n    log_tanggal: ACUAN, log_jenis: isPenutup ? \"penutup\" : \"nudge\",\n    log_direspon: isPenutup ? \"-\" : \"tidak\",\n    log_tindak_lanjut: isPenutup ? \"Onboarding ditutup\" : \"Menunggu respons pelanggan\"\n  } });\n}\nreturn keluaran;"
+      },
+      "id": "7f501e9d-ee75-40a2-88d1-2dc11129172c",
+      "name": "Susun Prompt Pesan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt_pengguna }}",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Kamu penulis pesan onboarding untuk WarungOS, aplikasi kasir dan inventori untuk warung serta restoran kecil di Indonesia.\n\nATURAN KERAS:\n1. Bahasa Indonesia, ramah dan santai tapi sopan. Sapa dengan \"Kak\".\n2. Maksimal 4 kalimat dan di bawah 400 karakter.\n3. HANYA gunakan fakta dari panduan yang diberikan di prompt. JANGAN mengarang fitur, harga, promo, diskon, atau janji waktu apa pun.\n4. Jangan menyalahkan atau menggurui pelanggan. Jangan menekan.\n5. Sebut langkah konkret yang bisa langsung dilakukan.\n6. Tutup dengan satu ajakan sederhana atau tawaran bantuan.\n7. Keluarkan HANYA teks pesannya saja. Tanpa tanda kutip, tanpa judul, tanpa emoji berlebihan, tanpa penjelasan tambahan."
+            }
+          ]
+        },
+        "batching": {
+          "batchSize": 2,
+          "delayBetweenBatches": 500
+        }
+      },
+      "id": "11db114b-3c76-417f-b47c-ab79bccbcc98",
+      "name": "AI Tulis Pesan",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1792,
+        176
+      ]
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4o-mini",
+        "options": {
+          "maxTokens": 300,
+          "temperature": 0.4
+        }
+      },
+      "id": "eff6d4d4-b845-4d1e-a6d6-85dd440604b5",
+      "name": "Model OpenRouter",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1856,
+        400
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "qaPU1MJlW4KQwaLT",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const cfg = $(\"Konfigurasi\").first().json;\nconst asal = $(\"Susun Prompt Pesan\").item.json;\nlet teks = String($json.text || $json.output || \"\").trim();\nteks = teks.replace(/^[\\s\"'`]+/, \"\").replace(/[\\s\"'`]+$/, \"\").trim();\nteks = teks.replace(/^(Pesan|Jawaban|Output|Balasan)\\s*:\\s*/i, \"\").trim();\nconst masalah = [];\nif (teks.length === 0) masalah.push(\"keluaran AI kosong\");\nif (teks.length > cfg.MAKS_PANJANG_PESAN) masalah.push(\"terlalu panjang (\" + teks.length + \" karakter)\");\nif (/\\b(gratis|diskon|promo|refund|garansi|dijamin|pasti)\\b/i.test(teks)) masalah.push(\"mengandung janji komersial\");\nif (/Rp\\s?[\\d.,]{4,}/i.test(teks) && asal.tahap_macet !== 4) masalah.push(\"menyebut nominal di luar konteks\");\nlet sumber = \"ai\";\nif (masalah.length > 0) { teks = asal.pesan_cadangan; sumber = \"cadangan\"; }\nreturn { json: Object.assign({}, asal, {\n  pesan_pelanggan: teks, sumber_pesan: sumber,\n  masalah_pesan: masalah.join(\"; \"), panjang_pesan: teks.length,\n  log_isi: (asal.aksi === \"PENUTUP\" ? \"PENUTUP - \" : \"NUDGE ms\" + asal.tahap_macet + \" - \") + teks.slice(0, 120)\n}) };"
+      },
+      "id": "cb012bfc-f858-41f5-a74b-1bc0805b1e6d",
+      "name": "Validasi Pesan AI",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1269594726235265",
+        "recipientPhoneNumber": "={{ $json.no_wa }}",
+        "textBody": "={{ $json.pesan_pelanggan }}",
+        "additionalFields": {}
+      },
+      "id": "1d017f1b-d0c5-4ae6-8ea0-368e26a0aad6",
+      "name": "Send message",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        2368,
+        272
+      ],
+      "webhookId": "46dbe23b-18f2-41d7-86d7-81d9997ef161",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "kxC6JmHpYJIWgSpZ",
+          "name": "n8n-test"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log_Interaksi"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_id": "={{ $('Validasi Pesan AI').item.json.log_id }}",
+            "customer_id": "={{ $('Validasi Pesan AI').item.json.customer_id }}",
+            "tanggal": "={{ $('Validasi Pesan AI').item.json.log_tanggal }}",
+            "jenis": "={{ $('Validasi Pesan AI').item.json.log_jenis }}",
+            "isi_ringkas": "={{ $('Validasi Pesan AI').item.json.log_isi }}",
+            "direspon": "={{ $('Validasi Pesan AI').item.json.log_direspon }}",
+            "tindak_lanjut": "={{ $('Validasi Pesan AI').item.json.log_tindak_lanjut }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_id",
+              "displayName": "log_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "customer_id",
+              "displayName": "customer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tanggal",
+              "displayName": "tanggal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "jenis",
+              "displayName": "jenis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "isi_ringkas",
+              "displayName": "isi_ringkas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direspon",
+              "displayName": "direspon",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tindak_lanjut",
+              "displayName": "tindak_lanjut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "1756652e-cf78-44b6-bcd9-a414dddc799c",
+      "name": "Catat Pesan ke Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2592,
+        272
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Validasi Pesan AI').item.json.aksi }}",
+              "rightValue": "PENUTUP",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1942ead2-03a3-4fce-a39d-125ec6cd2d91",
+      "name": "Onboarding Ditutup?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2816,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Pelanggan"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "customer_id": "={{ $('Validasi Pesan AI').item.json.customer_id }}",
+            "status_onboarding": "selesai"
+          },
+          "matchingColumns": [
+            "customer_id"
+          ],
+          "schema": [
+            {
+              "id": "customer_id",
+              "displayName": "customer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status_onboarding",
+              "displayName": "status_onboarding",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "4759f3d1-8a16-4ee8-8811-80f1e9539b16",
+      "name": "Tandai Onboarding Selesai",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3040,
+        176
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "48d58be7-ff8d-4e05-be1f-79d360051f5b",
+      "name": "Menunggu Respons Pelanggan",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        3040,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $(\"Konfigurasi\").first().json;\nconst ACUAN = String(cfg.TANGGAL_ACUAN || new Date().toISOString().slice(0, 10));\nfunction amanHtml(teks) {\n  return String(teks === null || teks === undefined ? \"\" : teks)\n    .replace(/&/g, \"&amp;\").replace(/</g, \"&lt;\").replace(/>/g, \"&gt;\");\n}\nconst keluaran = [];\nfor (const item of $input.all()) {\n  const d = item.json;\n  const isStop = d.aksi === \"STOP\";\n  const judul = isStop ? \"SISTEM BERHENTI - SERAHKAN KE MANUSIA\" : \"ESKALASI KE CS\";\n  const tanda = d.level_risiko === \"TINGGI\" ? \"MERAH\" : (d.level_risiko === \"SEDANG\" ? \"ORANYE\" : \"KUNING\");\n  const baris = [];\n  baris.push(\"<b>\" + amanHtml(judul) + \"</b>\");\n  baris.push(\"Prioritas: \" + tanda + \" | Risiko churn \" + d.skor_risiko_churn + \" (\" + d.level_risiko + \")\");\n  baris.push(\"\");\n  baris.push(\"Outlet: \" + amanHtml(d.nama_bisnis) + \" (\" + d.customer_id + \")\");\n  baris.push(\"Paket: \" + amanHtml(d.paket) + \" | WA: \" + amanHtml(d.no_wa));\n  baris.push(\"Umur akun: \" + d.hari_sejak_signup + \" hari\");\n  baris.push(\"\");\n  baris.push(\"Tersendat di milestone \" + d.tahap_macet + \" - \" + amanHtml(d.nama_tahap_macet));\n  baris.push(\"Lama tersendat: \" + d.hari_macet + \" hari\");\n  baris.push(\"Progres: \" + d.jumlah_milestone_selesai + \"/\" + cfg.TOTAL_MILESTONE + \" milestone selesai\");\n  baris.push(\"Nudge diabaikan: \" + d.nudge_diabaikan + \"x\");\n  baris.push(\"Catatan tahap: \" + amanHtml(d.catatan_tahap || \"-\"));\n  baris.push(\"\");\n  baris.push(\"Faktor risiko: \" + amanHtml(d.alasan_skor || \"-\"));\n  baris.push(\"Alasan sistem: \" + amanHtml(d.sebab));\n  baris.push(\"\");\n  baris.push(isStop\n    ? \"Tindakan: sistem TIDAK akan mengirim pesan otomatis lagi ke pelanggan ini. Butuh kontak manual.\"\n    : \"Tindakan: hubungi pelanggan secara manual. Sistem tetap memantau.\");\n  baris.push(\"Tanggal acuan: \" + ACUAN);\n  const ringkasSingkat = (isStop ? \"STOP - \" : \"ESKALASI - \") +\n    \"macet \" + d.hari_macet + \" hari di milestone \" + d.tahap_macet +\n    \", skor churn \" + d.skor_risiko_churn + \" (\" + d.level_risiko + \")\";\n  keluaran.push({ json: {\n    customer_id: d.customer_id, nama_bisnis: d.nama_bisnis, aksi: d.aksi,\n    perlu_serahkan_cs: isStop, pesan_admin: baris.join(\"\\n\"),\n    log_id: \"LOG-\" + ACUAN.replace(/-/g, \"\") + \"-\" + String(d.customer_id).replace(\"CUST-\", \"\") + \"-E\",\n    log_tanggal: ACUAN, log_jenis: \"eskalasi\", log_isi: ringkasSingkat,\n    log_direspon: \"-\", log_tindak_lanjut: isStop ? \"Diserahkan ke CS, sistem berhenti mengirim\" : \"CS perlu follow-up manual\"\n  } });\n}\nreturn keluaran;"
+      },
+      "id": "9eb89387-fa40-46df-b241-7c63ee17a0b6",
+      "name": "Susun Ringkasan Admin",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Konfigurasi').first().json.TELEGRAM_CHAT_ID }}",
+        "text": "={{ $json.pesan_admin }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "7c25d786-e573-49e8-ba4b-6e8a3dedb3e1",
+      "name": "Kirim Peringatan ke Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1856,
+        608
+      ],
+      "webhookId": "1acf91b6-4f83-4dd0-9862-636374a7380b",
+      "credentials": {
+        "telegramApi": {
+          "id": "MqD4uzeNvfaU25e5",
+          "name": "WarungOS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Log_Interaksi"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_id": "={{ $('Susun Ringkasan Admin').item.json.log_id }}",
+            "customer_id": "={{ $('Susun Ringkasan Admin').item.json.customer_id }}",
+            "tanggal": "={{ $('Susun Ringkasan Admin').item.json.log_tanggal }}",
+            "jenis": "={{ $('Susun Ringkasan Admin').item.json.log_jenis }}",
+            "isi_ringkas": "={{ $('Susun Ringkasan Admin').item.json.log_isi }}",
+            "direspon": "={{ $('Susun Ringkasan Admin').item.json.log_direspon }}",
+            "tindak_lanjut": "={{ $('Susun Ringkasan Admin').item.json.log_tindak_lanjut }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_id",
+              "displayName": "log_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "customer_id",
+              "displayName": "customer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tanggal",
+              "displayName": "tanggal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "jenis",
+              "displayName": "jenis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "isi_ringkas",
+              "displayName": "isi_ringkas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direspon",
+              "displayName": "direspon",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tindak_lanjut",
+              "displayName": "tindak_lanjut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "8ff04452-6808-470c-aa7e-a1a8e657adff",
+      "name": "Catat Eskalasi ke Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2144,
+        608
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $('Susun Ringkasan Admin').item.json.perlu_serahkan_cs }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3a85e408-b046-4b81-a729-0c0100b518b6",
+      "name": "Perlu Serahkan ke CS?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2368,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Pelanggan"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "customer_id": "={{ $('Susun Ringkasan Admin').item.json.customer_id }}",
+            "status_onboarding": "diserahkan_ke_cs"
+          },
+          "matchingColumns": [
+            "customer_id"
+          ],
+          "schema": [
+            {
+              "id": "customer_id",
+              "displayName": "customer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status_onboarding",
+              "displayName": "status_onboarding",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "d73eee30-7fe1-4446-8153-14a425daff4b",
+      "name": "Tandai Diserahkan ke CS",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2592,
+        512
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "74d4b4cb-3214-4055-8aaf-07ece5291853",
+      "name": "Tetap Dipantau Sistem",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2592,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Pelanggan"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "customer_id": "={{ $json.customer_id }}",
+            "milestone_terakhir": "={{ $json.jumlah_milestone_selesai }}",
+            "skor_risiko_churn": "={{ $json.skor_risiko_churn }}"
+          },
+          "matchingColumns": [
+            "customer_id"
+          ],
+          "schema": [
+            {
+              "id": "customer_id",
+              "displayName": "customer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "milestone_terakhir",
+              "displayName": "milestone_terakhir",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "skor_risiko_churn",
+              "displayName": "skor_risiko_churn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "77780827-8ee6-4be4-b0b1-463b9a9fedb4",
+      "name": "Simpan Skor Churn ke Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1344,
+        832
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "f3cbdad0-85b3-42c0-a4ef-18b14c10f43a",
+      "name": "Uji Manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        704
+      ]
+    }
+  ],
+  "connections": {
+    "Jadwal Harian 09:00 WIB": {
+      "main": [
+        [
+          {
+            "node": "Konfigurasi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Konfigurasi": {
+      "main": [
+        [
+          {
+            "node": "Ambil Pelanggan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Pelanggan": {
+      "main": [
+        [
+          {
+            "node": "Ambil Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Progress": {
+      "main": [
+        [
+          {
+            "node": "Ambil Log Interaksi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Log Interaksi": {
+      "main": [
+        [
+          {
+            "node": "Mesin Keputusan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mesin Keputusan": {
+      "main": [
+        [
+          {
+            "node": "Rute Aksi",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Simpan Skor Churn ke Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rute Aksi": {
+      "main": [
+        [
+          {
+            "node": "Tidak Kirim Apapun",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Susun Prompt Pesan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Susun Ringkasan Admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Susun Ringkasan Admin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Susun Prompt Pesan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Prompt Pesan": {
+      "main": [
+        [
+          {
+            "node": "AI Tulis Pesan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Tulis Pesan": {
+      "main": [
+        [
+          {
+            "node": "Validasi Pesan AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model OpenRouter": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Tulis Pesan",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validasi Pesan AI": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message": {
+      "main": [
+        [
+          {
+            "node": "Catat Pesan ke Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catat Pesan ke Log": {
+      "main": [
+        [
+          {
+            "node": "Onboarding Ditutup?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Onboarding Ditutup?": {
+      "main": [
+        [
+          {
+            "node": "Tandai Onboarding Selesai",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Menunggu Respons Pelanggan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Ringkasan Admin": {
+      "main": [
+        [
+          {
+            "node": "Kirim Peringatan ke Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kirim Peringatan ke Admin": {
+      "main": [
+        [
+          {
+            "node": "Catat Eskalasi ke Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catat Eskalasi ke Log": {
+      "main": [
+        [
+          {
+            "node": "Perlu Serahkan ke CS?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perlu Serahkan ke CS?": {
+      "main": [
+        [
+          {
+            "node": "Tandai Diserahkan ke CS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tetap Dipantau Sistem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Uji Manual": {
+      "main": [
+        [
+          {
+            "node": "Konfigurasi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "aiBuilderAssisted": true
+  },
+  "pinData": {}
+}

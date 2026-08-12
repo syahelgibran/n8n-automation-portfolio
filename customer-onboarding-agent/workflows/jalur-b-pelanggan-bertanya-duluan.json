@@ -1,0 +1,824 @@
+{
+  "name": "WarungOS - Jalur B: Pelanggan Bertanya Duluan",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "messages"
+        ],
+        "options": {}
+      },
+      "id": "87f67161-e63c-4271-96e8-e48f62ece5c7",
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.whatsAppTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        496
+      ],
+      "webhookId": "f99b6fb2-361e-408d-9da5-504a151d9ab9",
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "BnqwkOvBa7d6g5DU",
+          "name": "n8n-test"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const SHEET_ID = \"157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU\";\nconst TELEGRAM_CHAT_ID = \"8329818531\";\nconst TOTAL_MILESTONE      = 5;\nconst MAKS_PANJANG_JAWABAN = 900;\nreturn [{ json: { SHEET_ID, TELEGRAM_CHAT_ID, TOTAL_MILESTONE, MAKS_PANJANG_JAWABAN } }];"
+      },
+      "id": "b84cc273-b67f-4dd7-952a-4d03e0798221",
+      "name": "Konfigurasi",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "function normalisasiNomor(nilai) {\n  let d = String(nilai || \"\").replace(/[^0-9]/g, \"\");\n  if (d.length === 0) return \"\";\n  if (d.indexOf(\"0\") === 0) d = \"62\" + d.slice(1);\n  if (d.indexOf(\"62\") !== 0 && d.length >= 9 && d.length <= 11) d = \"62\" + d;\n  return d;\n}\n\nconst hasil = { valid: false, alasan: \"\", no_wa: \"\", nama_pengirim: \"\", pesan: \"\", sumber: \"\", id_pesan: \"\" };\n\nlet body = {};\ntry {\n  const waItem = $(\"WhatsApp Trigger\").first().json;\n  if (waItem && typeof waItem === \"object\") { body = waItem; }\n} catch(e) {}\n\n// Hanya fallback ke Webhook kalau WA Trigger tidak punya data yang dikenali\nif (!body.object && !body.from && !body.message && !body.no_wa && !body.nomor && !body.messaging_product) {\n  try { body = $(\"Webhook Pesan Masuk\").first().json.body || {}; } catch(e) {}\n}\n\n// --- Bentuk 1: Meta raw payload (object + entry) ---\nif (body.object === \"whatsapp_business_account\" && Array.isArray(body.entry)) {\n  const value = body.entry[0] && body.entry[0].changes && body.entry[0].changes[0]\n    ? body.entry[0].changes[0].value : null;\n  if (!value) {\n    hasil.alasan = \"payload WhatsApp tanpa changes\";\n  } else if (Array.isArray(value.statuses) && !Array.isArray(value.messages)) {\n    hasil.alasan = \"callback status pengiriman, bukan pesan pelanggan\";\n  } else {\n    const m = Array.isArray(value.messages) ? value.messages[0] : null;\n    if (!m) {\n      hasil.alasan = \"tidak ada pesan di payload\";\n    } else if (m.type !== \"text\") {\n      hasil.alasan = \"tipe pesan \" + m.type + \" belum didukung\";\n    } else {\n      const kontak = Array.isArray(value.contacts) ? value.contacts[0] : null;\n      hasil.valid = true; hasil.sumber = \"whatsapp\";\n      hasil.no_wa = normalisasiNomor(m.from);\n      hasil.nama_pengirim = kontak && kontak.profile ? String(kontak.profile.name || \"\") : \"\";\n      hasil.pesan = String(m.text.body || \"\").trim();\n      hasil.id_pesan = String(m.id || \"\");\n    }\n  }\n}\n// --- Bentuk 2: n8n WhatsApp Trigger native (value level, messaging_product di root) ---\nelse if (body.messaging_product === \"whatsapp\" && Array.isArray(body.messages)) {\n  const m = body.messages[0];\n  if (!m) {\n    hasil.alasan = \"tidak ada pesan di payload WhatsApp Trigger\";\n  } else if (m.type !== \"text\") {\n    hasil.alasan = \"tipe pesan \" + m.type + \" belum didukung\";\n  } else {\n    const kontak = Array.isArray(body.contacts) ? body.contacts[0] : null;\n    hasil.valid = true; hasil.sumber = \"whatsapp\";\n    hasil.no_wa = normalisasiNomor(m.from);\n    hasil.nama_pengirim = kontak && kontak.profile ? String(kontak.profile.name || \"\") : \"\";\n    hasil.pesan = String(m.text.body || \"\").trim();\n    hasil.id_pesan = String(m.id || \"\");\n  }\n}\n// --- Bentuk 3: n8n WhatsApp Trigger status update (buang) ---\nelse if (body.messaging_product === \"whatsapp\" && !Array.isArray(body.messages)) {\n  hasil.alasan = \"callback status pengiriman WhatsApp Trigger, bukan pesan pelanggan\";\n}\n// --- Bentuk 4: n8n WhatsApp Trigger parsed per-message (from di root) ---\nelse if (body.from && (body.text || body.type)) {\n  if (!body.text || !body.text.body) {\n    hasil.alasan = \"tipe pesan native WhatsApp Trigger tidak didukung\";\n  } else {\n    hasil.valid = true; hasil.sumber = \"whatsapp\";\n    hasil.no_wa = normalisasiNomor(body.from);\n    hasil.nama_pengirim = String(body.name || body.from || \"\");\n    hasil.pesan = String(body.text.body).trim();\n    hasil.id_pesan = String(body.id || \"\");\n  }\n}\n// --- Bentuk 5: update Telegram ---\nelse if (body.message && body.message.chat) {\n  if (!body.message.text) {\n    hasil.alasan = \"pesan Telegram tanpa teks\";\n  } else {\n    hasil.valid = true; hasil.sumber = \"telegram\";\n    hasil.no_wa = normalisasiNomor(body.message.contact ? body.message.contact.phone_number : \"\");\n    hasil.nama_pengirim = body.message.from ? String(body.message.from.first_name || \"\") : \"\";\n    hasil.pesan = String(body.message.text).trim();\n    hasil.id_pesan = String(body.message.message_id || \"\");\n  }\n}\n// --- Bentuk 6: payload uji sederhana {no_wa, pesan} ---\nelse if ((body.no_wa || body.nomor) && (body.pesan || body.text)) {\n  hasil.valid = true; hasil.sumber = \"uji\";\n  hasil.no_wa = normalisasiNomor(body.no_wa || body.nomor);\n  hasil.nama_pengirim = String(body.nama || \"\");\n  hasil.pesan = String(body.pesan || body.text).trim();\n  hasil.id_pesan = \"uji-\" + Date.now();\n}\nelse {\n  hasil.alasan = \"bentuk payload tidak dikenali\";\n}\n\nif (!hasil.valid || hasil.pesan.length === 0) {\n  console.log(\"Payload diabaikan: \" + (hasil.alasan || \"pesan kosong\"));\n  return [];\n}\n\nreturn [{ json: hasil }];"
+      },
+      "id": "aec84311-55a2-4be7-940d-a8d2d363d783",
+      "name": "Normalisasi Pesan Masuk",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Pelanggan"
+        },
+        "options": {}
+      },
+      "id": "4f697af4-a409-4c3f-b87c-89f425876acd",
+      "name": "Ambil Pelanggan",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        672,
+        496
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Progress_Milestone"
+        },
+        "options": {}
+      },
+      "id": "3a3c161d-0bbf-4b99-acf2-65d5a1d6627e",
+      "name": "Ambil Progress",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        896,
+        496
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ATURAN_AGEN = [\n  \"Kamu adalah asisten onboarding WarungOS, aplikasi kasir (POS) dan inventori untuk warung serta restoran kecil di Indonesia. Kamu membalas pelanggan lewat WhatsApp.\",\n  \"\",\n  \"ATURAN KERAS:\",\n  \"1. Bahasa Indonesia, ramah dan santai tapi sopan. Sapa dengan Kak. Maksimal 5 kalimat.\",\n  \"2. Fakta produk HANYA boleh berasal dari tool cari_panduan. Kalau tidak kamu temukan di sana, katakan terus terang bahwa kamu belum menemukan jawabannya dan tawarkan bantuan tim. JANGAN mengarang fitur, harga, promo, batas transaksi, atau janji waktu.\",\n  \"3. Untuk pertanyaan soal progres onboarding pelanggan ini, pakai tool cek_progress. Jangan menebak.\",\n  \"4. Setiap kali selesai menjawab, WAJIB panggil tool catat_interaksi satu kali.\",\n  \"5. Panggil tool escalate_to_human HANYA untuk: transaksi tercatat ganda, laporan penjualan tidak sesuai transaksi asli, dana settlement telat lebih dari 2 hari kerja, akun tidak bisa diakses dan reset password gagal, aktivitas mencurigakan, pelanggan marah atau minta bicara dengan manusia, atau urusan kontrak dan tagihan langganan. Di luar itu, jawab sendiri.\",\n  \"6. Jangan menyalahkan pelanggan. Jangan menggurui.\",\n  \"7. Keluarkan HANYA teks balasannya. Tanpa tanda kutip pembungkus, tanpa judul, tanpa menyebut nama tool yang kamu pakai, dan tanpa mengumumkan tindakan yang akan kamu lakukan seperti saya akan catat interaksi ini atau saya akan laporkan.\",\n  \"\",\n  \"Kalau pelanggan bertanya hal di luar WarungOS, arahkan kembali dengan sopan.\",\n  \"\"\n].join(\"\\n\");\nconst cfg = $(\"Konfigurasi\").first().json;\nconst masuk = $(\"Normalisasi Pesan Masuk\").first().json;\nfunction ekorNomor(nilai) {\n  let d = String(nilai || \"\").replace(/[^0-9]/g, \"\");\n  if (d.indexOf(\"0\") === 0) d = \"62\" + d.slice(1);\n  return d.slice(-9);\n}\nconst ekorPengirim = ekorNomor(masuk.no_wa);\nconst semuaPelanggan = $(\"Ambil Pelanggan\").all()\n  .map(function (i) { return i.json; })\n  .filter(function (r) { return r && String(r.customer_id || \"\").indexOf(\"CUST-\") === 0; });\nlet pelanggan = null;\nif (ekorPengirim.length === 9) {\n  pelanggan = semuaPelanggan.find(function (r) { return ekorNomor(r.no_wa) === ekorPengirim; }) || null;\n}\nif (!pelanggan) {\n  return [{ json: {\n    dikenal: false, no_wa: masuk.no_wa,\n    nama_pengirim: masuk.nama_pengirim, pesan: masuk.pesan, sumber: masuk.sumber\n  } }];\n}\nconst id = String(pelanggan.customer_id).trim();\nconst ms = $(\"Ambil Progress\").all()\n  .map(function (i) { return i.json; })\n  .filter(function (r) { return r && String(r.customer_id || \"\").trim() === id; })\n  .sort(function (a, b) { return Number(a.milestone_id) - Number(b.milestone_id); });\nconst selesai = ms.filter(function (m) { return String(m.status).trim().toLowerCase() === \"selesai\"; });\nconst belum = ms.filter(function (m) { return String(m.status).trim().toLowerCase() !== \"selesai\"; });\nconst tahapMacet = belum.length > 0 ? Number(belum[0].milestone_id) : 0;\nconst namaTahap = belum.length > 0 ? String(belum[0].nama_milestone || \"\") : \"\";\nconst catatanTahap = belum.length > 0 ? String(belum[0].catatan || \"\") : \"\";\nlet hariMacet = 0;\nfor (const m of belum) { const h = Number(m.hari_di_tahap_ini) || 0; if (h > hariMacet) hariMacet = h; }\nconst daftarMilestone = ms.map(function (m) {\n  return \"  \" + m.milestone_id + \". \" + m.nama_milestone + \" - \" + (String(m.status).trim().toLowerCase() === \"selesai\" ? \"SELESAI\" : \"BELUM\");\n}).join(\"\\n\");\nconst konteks = [\n  \"=== DATA PELANGGAN YANG SEDANG BERTANYA ===\",\n  \"Nama outlet: \" + pelanggan.nama_bisnis, \"ID pelanggan: \" + id,\n  \"Kota: \" + (pelanggan.kota || \"-\"), \"Paket langganan: \" + pelanggan.paket,\n  \"Status onboarding: \" + pelanggan.status_onboarding, \"\",\n  \"Progres milestone (\" + selesai.length + \" dari \" + cfg.TOTAL_MILESTONE + \" selesai):\",\n  daftarMilestone, \"\",\n  (belum.length > 0\n    ? \"Tahap yang sedang dikerjakan: milestone \" + tahapMacet + \" - \" + namaTahap +\n      \" (sudah \" + hariMacet + \" hari di tahap ini). Catatan sistem: \" + (catatanTahap || \"tidak ada\")\n    : \"Seluruh milestone sudah selesai.\"),\n  \"=== AKHIR DATA PELANGGAN ===\"\n].join(\"\\n\");\nconst tglSekarang = new Date().toISOString().slice(0, 10);\nreturn [{ json: {\n  dikenal: true, customer_id: id, nama_bisnis: pelanggan.nama_bisnis,\n  no_wa: String(pelanggan.no_wa || \"\"), paket: pelanggan.paket,\n  status_onboarding: pelanggan.status_onboarding, tahap_macet: tahapMacet,\n  nama_tahap_macet: namaTahap, hari_macet: hariMacet,\n  jumlah_milestone_selesai: selesai.length, pesan: masuk.pesan,\n  sumber: masuk.sumber, nama_pengirim: masuk.nama_pengirim,\n  konteks_pelanggan: konteks, system_message: ATURAN_AGEN + \"\\n\" + konteks,\n  log_id_b: \"LOG-\" + tglSekarang.replace(/-/g, \"\") + \"-\" + id.replace(\"CUST-\", \"\") + \"-B\",\n  log_tanggal: tglSekarang\n} }];"
+      },
+      "id": "a7f8b164-ca83-4b33-b84c-6bb17692bc5f",
+      "name": "Cocokkan Pelanggan",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.dikenal }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "efa08ace-4f1f-4542-b807-a33db57d5799",
+      "name": "Pelanggan Dikenal?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1344,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.pesan }}",
+        "options": {
+          "systemMessage": "={{ $json.system_message }}",
+          "maxIterations": 8,
+          "returnIntermediateSteps": false,
+          "enableStreaming": false
+        }
+      },
+      "id": "39580932-a007-4f6a-bd54-69bee766a55b",
+      "name": "Agen Onboarding",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1832,
+        320
+      ],
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4o-mini",
+        "options": {
+          "maxTokens": 500,
+          "temperature": 0.3
+        }
+      },
+      "id": "ec8771c1-0667-4add-8d7d-31e1d3179577",
+      "name": "Model OpenRouter",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1568,
+        544
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "qaPU1MJlW4KQwaLT",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Cocokkan Pelanggan').first().json.customer_id }}",
+        "contextWindowLength": 6
+      },
+      "id": "edec1a0b-a48c-4527-a8fc-9d57d47c0739",
+      "name": "Ingatan Percakapan",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1696,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Cari jawaban di basis pengetahuan resmi WarungOS: panduan 5 milestone onboarding, cara pakai fitur, troubleshooting printer dan QRIS, kebijakan langganan, batas transaksi, dan prosedur support. WAJIB dipakai untuk semua pertanyaan tentang produk. Masukkan pertanyaan pelanggan apa adanya.",
+        "tableName": {
+          "__rl": true,
+          "mode": "id",
+          "value": "warungos_kb"
+        },
+        "options": {
+          "queryName": "match_warungos_kb"
+        }
+      },
+      "id": "360abf4c-88ff-4aa6-b4f8-16c631180df9",
+      "name": "cari_panduan",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        1824,
+        544
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "QjBJNnOTfSflqDhQ",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "dimensions": 1536
+        }
+      },
+      "id": "0c12302c-1061-4a35-82b4-16bfec7d9710",
+      "name": "Embedding via OpenRouter",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1904,
+        752
+      ],
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "cIvLlv1dsI3dkzD2",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Ambil status kelima milestone onboarding milik pelanggan yang sedang bertanya. Pakai kalau pelanggan menanyakan sudah sampai mana progresnya, langkah apa yang tersisa, atau apakah suatu langkah sudah selesai. Tool ini tidak butuh masukan apa pun.",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Konfigurasi').first().json.SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Progress_Milestone"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "customer_id",
+              "lookupValue": "={{ $('Cocokkan Pelanggan').first().json.customer_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "10f94dd8-3d88-40dd-8969-7216c2e2e6a3",
+      "name": "cek_progress",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        2112,
+        544
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Teruskan percakapan ini ke tim CS manusia. Pakai HANYA untuk kasus berat: transaksi ganda, laporan tidak sesuai, dana settlement telat lebih dari 2 hari kerja, akun terkunci dan reset password gagal, aktivitas mencurigakan, pelanggan marah atau minta bicara dengan manusia, atau urusan kontrak dan tagihan.",
+        "chatId": "={{ $('Konfigurasi').first().json.TELEGRAM_CHAT_ID }}",
+        "text": "={{ 'ESKALASI DARI JALUR B' + '\\n\\nOutlet: ' + $('Cocokkan Pelanggan').first().json.nama_bisnis + ' (' + $('Cocokkan Pelanggan').first().json.customer_id + ')' + '\\nWhatsApp: ' + $('Cocokkan Pelanggan').first().json.no_wa + '\\nTahap: milestone ' + $('Cocokkan Pelanggan').first().json.tahap_macet + '\\n\\nPertanyaan pelanggan:\\n' + $('Cocokkan Pelanggan').first().json.pesan + '\\n\\nAlasan eskalasi menurut agen:\\n' + $fromAI('alasan_eskalasi', 'Alasan kenapa kasus ini perlu ditangani manusia', 'string') }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
+      },
+      "id": "04100f76-daa6-45b3-a85a-5f2536f26504",
+      "name": "escalate_to_human",
+      "type": "n8n-nodes-base.telegramTool",
+      "typeVersion": 1.2,
+      "position": [
+        2240,
+        544
+      ],
+      "webhookId": "4ed6cabf-81a4-4912-8967-5fe31194b72e",
+      "credentials": {
+        "telegramApi": {
+          "id": "MqD4uzeNvfaU25e5",
+          "name": "WarungOS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const cfg = $(\"Konfigurasi\").first().json;\nconst asal = $(\"Cocokkan Pelanggan\").first().json;\nlet teks = String($json.output || $json.text || \"\").trim();\nteks = teks.replace(/^[\\s\"'`]+/, \"\").replace(/[\\s\"'`]+$/, \"\").trim();\nconst masalah = [];\nif (teks.length === 0) masalah.push(\"keluaran agen kosong\");\nif (teks.length > cfg.MAKS_PANJANG_JAWABAN) masalah.push(\"terlalu panjang (\" + teks.length + \" karakter)\");\nif (/\\b(gratis|diskon|promo|refund|dijamin)\\b/i.test(teks)) masalah.push(\"mengandung janji komersial\");\nlet sumber = \"ai\";\nif (masalah.length > 0) {\n  teks = \"Halo Kak, maaf pertanyaannya belum bisa kami jawab otomatis. Tim support kami akan menghubungi Kakak segera. Terima kasih sudah menunggu.\";\n  sumber = \"cadangan\";\n}\nreturn { json: Object.assign({}, asal, {\n  balasan: teks, sumber_jawaban: sumber, masalah_jawaban: masalah.join(\"; \")\n}) };"
+      },
+      "id": "7e6d525e-237f-4d69-ab6a-a57e8f52c04c",
+      "name": "Validasi Jawaban",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "phoneNumberId": "1269594726235265",
+        "recipientPhoneNumber": "={{ $json.no_wa.split(\"+\").join(\"\") }}",
+        "textBody": "={{ $json.balasan }}",
+        "additionalFields": {}
+      },
+      "id": "033f36ec-6ae6-4d2b-a786-b0aa921844c3",
+      "name": "Send message",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1.1,
+      "position": [
+        2672,
+        496
+      ],
+      "webhookId": "cd91b2e5-2622-4a8d-a7e1-3aa5b5000816",
+      "credentials": {
+        "whatsAppApi": {
+          "id": "kxC6JmHpYJIWgSpZ",
+          "name": "n8n-test"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst balasan = \"Halo Kak, nomor ini belum terdaftar sebagai pelanggan WarungOS. \" +\n  \"Kalau Kakak sudah berlangganan, mohon hubungi kami dari nomor yang didaftarkan saat sign up. \" +\n  \"Untuk pertanyaan umum, silakan hubungi WhatsApp CS kami.\";\nreturn [{ json: {\n  no_wa: d.no_wa || \"\",\n  customer_id: \"\", nama_bisnis: \"\", dikenal: false,\n  balasan: balasan, sumber_jawaban: \"cadangan\"\n} }];"
+      },
+      "id": "850f5c91-bb70-4b92-92c8-7525f6c45028",
+      "name": "Balasan Nomor Tidak Dikenal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU",
+          "mode": "list",
+          "cachedResultName": "WarungOS DB — MASTER 2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 420469157,
+          "mode": "list",
+          "cachedResultName": "Log_Interaksi",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU/edit#gid=420469157"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "log_id": "={{ $('Cocokkan Pelanggan').first().json.log_id_b }}",
+            "customer_id": "={{ $('Cocokkan Pelanggan').first().json.customer_id }}",
+            "tanggal": "={{ $('Cocokkan Pelanggan').first().json.log_tanggal }}",
+            "jenis": "pertanyaan_pelanggan",
+            "isi_ringkas": "={{ $('Cocokkan Pelanggan').first().json.pesan.slice(0,60) + ' → ' + $('Validasi Jawaban').first().json.balasan.slice(0,80) }}",
+            "direspon": "ya",
+            "tindak_lanjut": "tidak ada"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "log_id",
+              "displayName": "log_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "customer_id",
+              "displayName": "customer_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tanggal",
+              "displayName": "tanggal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "jenis",
+              "displayName": "jenis",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "isi_ringkas",
+              "displayName": "isi_ringkas",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "direspon",
+              "displayName": "direspon",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "tindak_lanjut",
+              "displayName": "tindak_lanjut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2896,
+        496
+      ],
+      "id": "4cd34aa9-fdd8-41f3-a05c-b11232731c9b",
+      "name": "Catat Log Interaksi",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "odT0Mebc446KrBb9",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Konfigurasi').first().json.TELEGRAM_CHAT_ID }}",
+        "text": "={{ '🚨 ESKALASI JALUR B\\n\\nOutlet: ' + $('Cocokkan Pelanggan').first().json.nama_bisnis + ' (' + $('Cocokkan Pelanggan').first().json.customer_id + ')\\nWhatsApp: ' + $('Cocokkan Pelanggan').first().json.no_wa + '\\nMilestone macet: ' + $('Cocokkan Pelanggan').first().json.tahap_macet + '\\n\\nPesan pelanggan:\\n' + $('Cocokkan Pelanggan').first().json.pesan }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3344,
+        496
+      ],
+      "id": "60511901-11f6-4775-8c78-ae1740828ad0",
+      "name": "Send a text message",
+      "webhookId": "df8fedee-8d04-4525-bf4e-d50b9e7b1e66",
+      "credentials": {
+        "telegramApi": {
+          "id": "MqD4uzeNvfaU25e5",
+          "name": "WarungOS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cc2ddf71-38d3-45e5-9ffe-9d04b83af4f8",
+              "leftValue": "={{ $('Cocokkan Pelanggan').first().json.pesan.match(/selisih|ganda|settlement|tidak bisa akses|reset password|bicara.*manusia|minta dihubungi|mencurigakan|tagihan|kontrak/i) !== null }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        3120,
+        496
+      ],
+      "id": "d2a2356f-3c02-451e-8b43-a6e1e1d6fbe2",
+      "name": "Perlu Eskalasi?"
+    }
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Konfigurasi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Konfigurasi": {
+      "main": [
+        [
+          {
+            "node": "Normalisasi Pesan Masuk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalisasi Pesan Masuk": {
+      "main": [
+        [
+          {
+            "node": "Ambil Pelanggan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Pelanggan": {
+      "main": [
+        [
+          {
+            "node": "Ambil Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ambil Progress": {
+      "main": [
+        [
+          {
+            "node": "Cocokkan Pelanggan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cocokkan Pelanggan": {
+      "main": [
+        [
+          {
+            "node": "Pelanggan Dikenal?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pelanggan Dikenal?": {
+      "main": [
+        [
+          {
+            "node": "Agen Onboarding",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Balasan Nomor Tidak Dikenal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agen Onboarding": {
+      "main": [
+        [
+          {
+            "node": "Validasi Jawaban",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Model OpenRouter": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agen Onboarding",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingatan Percakapan": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agen Onboarding",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cari_panduan": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agen Onboarding",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embedding via OpenRouter": {
+      "ai_embedding": [
+        [
+          {
+            "node": "cari_panduan",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "cek_progress": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agen Onboarding",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "escalate_to_human": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agen Onboarding",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validasi Jawaban": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Balasan Nomor Tidak Dikenal": {
+      "main": [
+        [
+          {
+            "node": "Send message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catat Log Interaksi": {
+      "main": [
+        [
+          {
+            "node": "Perlu Eskalasi?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send message": {
+      "main": [
+        [
+          {
+            "node": "Catat Log Interaksi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perlu Eskalasi?": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true,
+    "binaryMode": "separate"
+  },
+  "meta": {
+    "aiBuilderAssisted": true,
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {
+    "WhatsApp Trigger": [
+      {
+        "json": {
+          "messaging_product": "whatsapp",
+          "metadata": {
+            "display_phone_number": "15550000000",
+            "phone_number_id": "REDACTED_PHONE_NUMBER_ID"
+          },
+          "contacts": [
+            {
+              "profile": {
+                "name": "Demo Customer"
+              },
+              "wa_id": "628XXXXXXXXXX",
+              "user_id": "ID.0000000000000000"
+            }
+          ],
+          "messages": [
+            {
+              "from": "628XXXXXXXXXX",
+              "from_user_id": "ID.0000000000000000",
+              "id": "wamid.REDACTED",
+              "timestamp": "1786441962",
+              "text": {
+                "body": "QRIS saya kenapa nggak terbaca ya saat pelanggan mau bayar?"
+              },
+              "type": "text"
+            }
+          ],
+          "field": "messages"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  }
+}
