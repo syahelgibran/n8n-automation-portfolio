@@ -22,7 +22,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const SHEET_ID = \"157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU\";\nconst TELEGRAM_CHAT_ID = \"8329818531\";\nconst TANGGAL_ACUAN = \"\";\nconst TOTAL_MILESTONE      = 5;\nconst AMBANG_NUDGE_HARI    = 2;\nconst AMBANG_ESKALASI_HARI = 5;\nconst MAKS_NUDGE_DIABAIKAN = 3;\nconst JEDA_NUDGE_HARI      = 2;\nconst JEDA_ESKALASI_HARI   = 7;\nconst HARI_ANGGAP_DIABAIKAN = 1;\nconst AMBANG_NUDGE_TAHAP_3 = 3;\nconst SKOR_TINGGI = 60;\nconst SKOR_SEDANG = 30;\nconst MAKS_PANJANG_PESAN = 600;\nreturn [{ json: {\n  SHEET_ID, TELEGRAM_CHAT_ID, TANGGAL_ACUAN, TOTAL_MILESTONE,\n  AMBANG_NUDGE_HARI, AMBANG_ESKALASI_HARI, MAKS_NUDGE_DIABAIKAN,\n  JEDA_NUDGE_HARI, JEDA_ESKALASI_HARI, HARI_ANGGAP_DIABAIKAN,\n  AMBANG_NUDGE_TAHAP_3, SKOR_TINGGI, SKOR_SEDANG, MAKS_PANJANG_PESAN\n} }];"
+        "jsCode": "const SHEET_ID = \"YOUR_GOOGLE_SHEET_ID\";\nconst TELEGRAM_CHAT_ID = \"YOUR_TELEGRAM_CHAT_ID\";\nconst TANGGAL_ACUAN = \"\";\nconst TOTAL_MILESTONE      = 5;\nconst AMBANG_NUDGE_HARI    = 2;\nconst AMBANG_ESKALASI_HARI = 5;\nconst MAKS_NUDGE_DIABAIKAN = 3;\nconst JEDA_NUDGE_HARI      = 2;\nconst JEDA_ESKALASI_HARI   = 7;\nconst HARI_ANGGAP_DIABAIKAN = 1;\nconst AMBANG_NUDGE_TAHAP_3 = 3;\nconst SKOR_TINGGI = 60;\nconst SKOR_SEDANG = 30;\nconst MAKS_PANJANG_PESAN = 600;\nreturn [{ json: {\n  SHEET_ID, TELEGRAM_CHAT_ID, TANGGAL_ACUAN, TOTAL_MILESTONE,\n  AMBANG_NUDGE_HARI, AMBANG_ESKALASI_HARI, MAKS_NUDGE_DIABAIKAN,\n  JEDA_NUDGE_HARI, JEDA_ESKALASI_HARI, HARI_ANGGAP_DIABAIKAN,\n  AMBANG_NUDGE_TAHAP_3, SKOR_TINGGI, SKOR_SEDANG, MAKS_PANJANG_PESAN\n} }];"
       },
       "id": "7169d6f0-a7ee-41f7-ad7e-7a74a90a2780",
       "name": "Konfigurasi",
@@ -362,7 +362,7 @@
     {
       "parameters": {
         "operation": "send",
-        "phoneNumberId": "1269594726235265",
+        "phoneNumberId": "YOUR_WHATSAPP_PHONE_NUMBER_ID",
         "recipientPhoneNumber": "={{ $json.no_wa }}",
         "textBody": "={{ $json.pesan_pelanggan }}",
         "additionalFields": {}

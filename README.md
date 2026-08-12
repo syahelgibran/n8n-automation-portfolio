@@ -14,8 +14,7 @@ what the current version doesn't handle yet.
 | Project | What it does | Stack |
 |---|---|---|
 | [AI CV Screener](./cv-screener-ai/) | Reads incoming CVs, evaluates against job qualifications using an LLM, writes structured results to Sheets. Decision logic is in code — not the AI. | n8n · OpenRouter · LangChain · Google Sheets |
-| WhatsApp Order System *(coming soon)* | State machine that handles customer orders end-to-end via WhatsApp — from first message to payment confirmation | n8n · WhatsApp Business API |
-| HR Attendance Recap *(coming soon)* | Daily automated lateness report with per-employee summary, fine calculation, and Telegram notification to HR | n8n · Google Sheets · Telegram |
+| [Customer Onboarding Agent](./customer-onboarding-agent/) | Multi-workflow onboarding system for a SaaS POS product. Deterministic daily churn-risk routing plus an inbound RAG agent on WhatsApp. Routing is code; the LLM only writes copy. | n8n · OpenRouter · Supabase pgvector · WhatsApp Cloud API · Telegram |
 
 ## Tech I work with
 

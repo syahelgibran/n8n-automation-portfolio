@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const SHEET_ID = \"157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU\";\nconst TELEGRAM_CHAT_ID = \"8329818531\";\nconst TOTAL_MILESTONE      = 5;\nconst MAKS_PANJANG_JAWABAN = 900;\nreturn [{ json: { SHEET_ID, TELEGRAM_CHAT_ID, TOTAL_MILESTONE, MAKS_PANJANG_JAWABAN } }];"
+        "jsCode": "const SHEET_ID = \"YOUR_GOOGLE_SHEET_ID\";\nconst TELEGRAM_CHAT_ID = \"YOUR_TELEGRAM_CHAT_ID\";\nconst TOTAL_MILESTONE      = 5;\nconst MAKS_PANJANG_JAWABAN = 900;\nreturn [{ json: { SHEET_ID, TELEGRAM_CHAT_ID, TOTAL_MILESTONE, MAKS_PANJANG_JAWABAN } }];"
       },
       "id": "b84cc273-b67f-4dd7-952a-4d03e0798221",
       "name": "Konfigurasi",
@@ -349,7 +349,7 @@
     {
       "parameters": {
         "operation": "send",
-        "phoneNumberId": "1269594726235265",
+        "phoneNumberId": "YOUR_WHATSAPP_PHONE_NUMBER_ID",
         "recipientPhoneNumber": "={{ $json.no_wa.split(\"+\").join(\"\") }}",
         "textBody": "={{ $json.balasan }}",
         "additionalFields": {}
@@ -388,17 +388,17 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU",
+          "value": "YOUR_GOOGLE_SHEET_ID",
           "mode": "list",
           "cachedResultName": "WarungOS DB — MASTER 2",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU/edit?usp=drivesdk"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
         },
         "sheetName": {
           "__rl": true,
           "value": 420469157,
           "mode": "list",
           "cachedResultName": "Log_Interaksi",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/157sRt18dsg-CWjAd_pA4LZL5jcK6J1FiWeQcuF6DKvU/edit#gid=420469157"
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=420469157"
         },
         "columns": {
           "mappingMode": "defineBelow",

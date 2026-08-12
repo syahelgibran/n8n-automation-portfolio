@@ -81,10 +81,10 @@
         "operation": "download",
         "fileId": {
           "__rl": true,
-          "value": "1cTXbO6bdcits8Zl6C4B56Y-hmm0kdjG3",
+          "value": "YOUR_GOOGLE_DRIVE_FILE_ID",
           "mode": "list",
           "cachedResultName": "WarungOS_KnowledgeBase_RAG.pdf",
-          "cachedResultUrl": "https://drive.google.com/file/d/1cTXbO6bdcits8Zl6C4B56Y-hmm0kdjG3/view?usp=drivesdk"
+          "cachedResultUrl": "https://drive.google.com/file/d/YOUR_GOOGLE_DRIVE_FILE_ID/view?usp=drivesdk"
         },
         "options": {
           "binaryPropertyName": "data"
