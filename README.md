@@ -20,7 +20,7 @@ what the current version doesn't handle yet.
 
 **Workflow automation:** n8n (self-hosted & cloud)  
 **AI / LLM:** OpenRouter · OpenAI API · LangChain · prompt engineering · structured output  
-**Integration:** REST API · webhook · OAuth 2.0 · Google Workspace  
+**Integration:** REST API · webhook · OAuth 2.0 · Google Workspace  · Supabase
 **Notification:** Telegram Bot · WhatsApp Business API  
 **Storage:** Google Sheets · Google Drive  
 
@@ -47,11 +47,11 @@ data yet.
 
 ## Background
 
-I'm Syahel — an automation specialist based in East Java, 
+I'm Syahel — an automation specialist based in Jakarta, 
 Indonesia. My background is in agribusiness and entrepreneurship 
-(Universitas Brawijaya), not computer science. I got into 
-automation because I needed it: running actual businesses made 
-the cost of manual, repetitive work very obvious very fast.
+(Universitas Brawijaya). I got into automation because I needed 
+it: running actual businesses made the cost of manual, repetitive 
+work very obvious very fast.
 
 I now build automation systems for SMEs — primarily in 
 Indonesia, with growing interest in working with international 
