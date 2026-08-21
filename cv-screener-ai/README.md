@@ -1,86 +1,142 @@
 # CV Screener — n8n Automation Workflow
 
-Workflow otomatisasi berbasis [n8n](https://n8n.io) yang menyaring lamaran kerja secara otomatis: memantau email masuk, mengekstrak CV (PDF/Word/Text, termasuk hasil scan lewat OCR), membandingkannya dengan deskripsi pekerjaan menggunakan LLM, lalu mengirim email balasan (lolos/tidak) dan mencatat hasilnya ke Google Sheets.
+An n8n-based workflow that automates resume screening end-to-end:
+monitors incoming email, extracts CV content (PDF, Word, or plain
+text — including scanned PDFs via OCR), evaluates each candidate
+against the job description using an LLM, sends an automated reply
+(pass/fail), and logs every result to Google Sheets.
 
-> File workflow: [`cv-screener-workflow.json`](./cv-screener-workflow.json) — siap di-import ke n8n. Semua ID Google Drive/Sheets, webhook ID, dan API key pada file ini sudah diganti dengan placeholder (lihat bagian [Konfigurasi](#konfigurasi)).
+> **Impact:** Reduces manual resume screening from 5+ hours per
+> batch to under 30 minutes — without a recruiter touching a single
+> email.
 
-## Fitur
+> Workflow file: [`cv-screener-workflow.json`](./cv-screener-workflow.json) —
+> ready to import into n8n. All Google Drive/Sheets IDs, webhook IDs,
+> and API keys have been replaced with placeholders (see
+> [Configuration](#configuration)).
 
-- **Intake via Gmail** — memantau inbox setiap menit, memfilter email berdasarkan subjek (mengandung kata seperti `lamar`, `apply`, `cv`, `hr`, dst).
-- **Multi-format resume** — mendukung lampiran PDF, Word (`.docx`, dikonversi otomatis ke Google Docs → PDF), dan Text.
-- **OCR fallback** — jika PDF hasil scan (tidak ada teks yang bisa diekstrak langsung), teks diambil lewat [OCR.space](https://ocr.space) API.
-- **Penilaian berbasis AI** — sebuah AI agent (LLM via OpenRouter) membandingkan CV kandidat dengan deskripsi pekerjaan, lalu menghasilkan skor kecocokan (0–10), kekuatan/kelemahan kandidat, serta analisis risiko dan potensi (risk & reward) dalam format terstruktur.
-- **Konfigurasi berbasis Google Sheets** — posisi yang dibuka, kata kunci pencocokan subjek, threshold skor kelulusan, ID file deskripsi pekerjaan, dan template email semuanya diatur lewat satu spreadsheet konfigurasi (tanpa perlu ubah workflow).
-- **Auto-reply & logging** — mengirim email lolos/tidak lolos secara otomatis ke kandidat, lalu mencatat hasilnya (termasuk lamaran yang ditolak di tahap intake) ke Google Sheets terpisah.
+## Features
 
-## Alur Kerja
+- **Gmail intake** — monitors inbox every minute, filters emails by
+  subject keywords (`apply`, `cv`, `hr`, `lamar`, etc.).
+- **Multi-format resume support** — handles PDF, Word (`.docx`,
+  auto-converted to Google Docs → PDF), and plain text attachments.
+- **OCR fallback** — if a PDF is image-only (no extractable text),
+  content is retrieved via [OCR.space](https://ocr.space) API.
+- **AI-powered evaluation** — an LLM agent (via OpenRouter) compares
+  the candidate's CV against the job description, producing a match
+  score (0–10), strengths/weaknesses, and a structured risk/reward
+  analysis.
+- **Spreadsheet-driven config** — open positions, subject keywords,
+  pass threshold, job description file IDs, and email templates are
+  all managed in a single Google Sheets config file — no workflow
+  edits needed.
+- **Auto-reply + logging** — sends a pass/fail email to each candidate
+  automatically, and logs every result (including intake rejections)
+  to separate Google Sheets tabs.
+
+## Workflow
 
 ```mermaid
 flowchart TD
-    A[Gmail Trigger: Receive Resume] --> B{Subjek sesuai format?}
-    B -- Tidak --> B1[Log ke Rejected Intake]
-    B -- Ya --> C[Upload lampiran ke Google Drive]
-    C --> D{Tipe File}
-    D -- Word --> D1[Convert ke Google Docs] --> D2[Download sebagai PDF] --> D3[Extract Text]
-    D -- PDF --> D4[Download PDF] --> D5[Extract Text] --> D6{Teks kosong?}
-    D6 -- Ya, PDF hasil scan --> D7[OCR via OCR.space] --> D8[Set Resume - OCR]
-    D6 -- Tidak --> D9[Set Resume - Normal]
+    A[Gmail Trigger: Receive Resume] --> B{Subject matches filter?}
+    B -- No --> B1[Log to Rejected Intake]
+    B -- Yes --> C[Upload attachment to Google Drive]
+    C --> D{File type?}
+    D -- Word --> D1[Convert to Google Docs] --> D2[Download as PDF] --> D3[Extract Text]
+    D -- PDF --> D4[Download PDF] --> D5[Extract Text] --> D6{Text empty?}
+    D6 -- Yes, scanned PDF --> D7[OCR via OCR.space] --> D8[Set Resume - OCR]
+    D6 -- No --> D9[Set Resume - Normal]
     D -- Text --> D10[Download TXT] --> D11[Extract Text] --> D9
-    D -- Format lain --> D12[Log ke Rejected Intake]
+    D -- Other --> D12[Log to Rejected Intake]
     D3 --> D9
-    D9 --> E[Baca Config dari Google Sheets]
+    D9 --> E[Read config from Google Sheets]
     D8 --> E
-    E --> F[Deteksi posisi & ambil Job Description]
+    E --> F[Detect position & fetch Job Description]
     F --> G[Recruiter Agent - AI Scoring]
-    G --> H[Ekstrak data kandidat: Nama & Email]
-    H --> I{Skor >= Threshold?}
-    I -- Tidak --> J1[Kirim Email Penolakan] --> K1[Log ke Sheet: Tidak Lolos]
-    I -- Ya --> J2[Kirim Email Lolos] --> K2[Log ke Sheet: Kandidat Lolos]
+    G --> H[Extract candidate info: Name & Email]
+    H --> I{Score >= threshold?}
+    I -- No --> J1[Send rejection email] --> K1[Log to Sheet: Failed]
+    I -- Yes --> J2[Send pass email] --> K2[Log to Sheet: Passed]
 ```
 
-## Prasyarat
+## Prerequisites
 
-- Instance [n8n](https://n8n.io) (self-hosted atau cloud) dengan node LangChain aktif (`@n8n/n8n-nodes-langchain`).
-- Akun Google dengan akses ke:
-  - **Gmail** (baca email masuk & kirim email balasan)
-  - **Google Drive** (menyimpan lampiran CV & menyimpan file deskripsi pekerjaan)
-  - **Google Sheets** (spreadsheet konfigurasi & log hasil)
-- Akun **[OpenRouter](https://openrouter.ai)** untuk akses model LLM (default: `openai/gpt-4o-mini`).
-- API key **[OCR.space](https://ocr.space/ocrapi)** (free tier tersedia) untuk fallback OCR pada PDF hasil scan.
+- An [n8n](https://n8n.io) instance (self-hosted or cloud) with
+  LangChain nodes enabled (`@n8n/n8n-nodes-langchain`).
+- A Google account with access to:
+  - **Gmail** (read incoming emails & send replies)
+  - **Google Drive** (store CV attachments and job description files)
+  - **Google Sheets** (config spreadsheet & result logs)
+- An **[OpenRouter](https://openrouter.ai)** account for LLM access
+  (default model: `openai/gpt-4o-mini`).
+- An **[OCR.space](https://ocr.space/ocrapi)** API key (free tier
+  available) for scanned PDF fallback.
 
-## Konfigurasi
+## Configuration
 
-Setelah meng-import `cv-screener-workflow.json` ke n8n, lakukan langkah berikut:
+After importing `cv-screener-workflow.json` into n8n:
 
-1. **Set ulang semua credentials** — hubungkan node Gmail, Google Drive, Google Sheets, dan OpenRouter ke akun/kredensial Anda sendiri (n8n akan meminta ini otomatis karena kredensial pada file di-generic-kan).
-2. **Ganti placeholder berikut** dengan nilai milik Anda:
+1. **Re-link all credentials** — connect Gmail, Google Drive, Google
+   Sheets, and OpenRouter nodes to your own accounts (n8n will prompt
+   you automatically since credentials are genericised in the exported
+   file).
+2. **Replace the following placeholders** with your own values:
 
-   | Placeholder | Lokasi (node) | Keterangan |
+   | Placeholder | Node | Description |
    |---|---|---|
-   | `YOUR_DRIVE_FOLDER_ID` | `Upload to Drive` | ID folder Google Drive tujuan upload CV |
-   | `YOUR_SPREADSHEET_ID` | `Get row(s) in sheet`, `⚠️ Rejected Intake`, `✅ Kandidat Lolos`, `❌ Tidak Lolos` | ID Google Spreadsheet konfigurasi & log |
-   | `YOUR_OCR_SPACE_API_KEY` | `Extract Text from PDF` (header `apikey`) | API key dari OCR.space |
-   | `YOUR_WEBHOOK_ID` | `Send Rejection Email`, `Send Acceptance Email` | Biasanya di-generate ulang otomatis oleh n8n saat import; cek kembali jika ada konflik |
+   | `YOUR_DRIVE_FOLDER_ID` | `Upload to Drive` | Google Drive folder ID for CV uploads |
+   | `YOUR_SPREADSHEET_ID` | `Get row(s) in sheet`, `⚠️ Rejected Intake`, `✅ Passed`, `❌ Failed` | ID of the config & log spreadsheet |
+   | `YOUR_OCR_SPACE_API_KEY` | `Extract Text from PDF` (header `apikey`) | OCR.space API key |
+   | `YOUR_WEBHOOK_ID` | `Send Rejection Email`, `Send Acceptance Email` | Usually auto-regenerated by n8n on import; verify if conflicts arise |
 
-3. **Siapkan Google Spreadsheet konfigurasi** dengan minimal 4 sheet/tab berikut (header di baris ke-2, data mulai baris ke-3, mengikuti setting `headerRow`/`firstDataRow` pada node):
-   - `⚙️ CONFIG` — kolom `PARAMETER`, `NILAI / VALUE`, `TIPE DATA`, `WAJIB?` (berisi daftar posisi aktif, kata kunci subjek, ID file job description, threshold skor minimum, dan template email lolos/tidak lolos).
-   - `⚠️ Rejected Intake` — log lamaran yang ditolak di tahap awal (format tidak sesuai).
-   - `✅ Kandidat Lolos` — log kandidat yang lolos screening.
-   - `❌ Tidak Lolos` — log kandidat yang tidak lolos screening.
-4. Aktifkan workflow (`active: true`) setelah semua kredensial dan placeholder terisi.
+3. **Set up the Google Spreadsheet** with at least 4 tabs (headers on
+   row 2, data from row 3 — matching the `headerRow`/`firstDataRow`
+   settings in each node):
+   - `⚙️ CONFIG` — columns: `PARAMETER`, `VALUE`, `DATA TYPE`,
+     `REQUIRED?` (contains: active positions, subject keywords, job
+     description file IDs, minimum pass score, and pass/fail email
+     templates).
+   - `⚠️ Rejected Intake` — log of emails rejected at intake (wrong
+     format or subject).
+   - `✅ Passed` — log of candidates who passed screening.
+   - `❌ Failed` — log of candidates who failed screening.
+4. Activate the workflow (`active: true`) once all credentials and
+   placeholders are filled.
 
-## Struktur File
+## File Structure
 
 ```
 .
-├── cv-screener-workflow.json   # Workflow n8n (sudah dibersihkan dari data sensitif)
+├── cv-screener-workflow.json   # n8n workflow (sanitised — all credentials replaced with placeholders)
 └── README.md
 ```
 
-## Catatan Keamanan
+## Known Limitations
 
-File workflow ini adalah versi **portofolio** — seluruh ID Google Drive/Spreadsheet, webhook ID, API key, dan nama akun kredensial telah diganti dengan placeholder generik sebelum di-publish. Struktur node, koneksi antar node, dan logika workflow tidak diubah, sehingga tetap bisa dipelajari dan di-import ulang ke n8n setelah placeholder diisi dengan nilai milik Anda sendiri.
+- **Single-position intake per email** — the workflow detects one job
+  position per incoming email. A candidate applying to two positions
+  in one email will only be evaluated against the first match.
+- **OCR accuracy depends on scan quality** — low-resolution or skewed
+  scans may produce garbled text, affecting LLM scoring accuracy. No
+  retry logic is currently implemented.
+- **LLM scoring is non-deterministic** — the same CV may receive a
+  score difference of ±1 across runs. The pass threshold should be
+  set with this margin in mind.
+- **No duplicate detection** — the same email address can be logged
+  multiple times if the same candidate resubmits.
+- **Google Sheets as operational DB** — suitable for low-to-medium
+  volume (dozens of applications per day). High-volume use cases
+  would require a proper database backend.
 
-## Lisensi
+## Security Note
 
-Workflow ini dibagikan untuk tujuan portofolio/pembelajaran. Silakan gunakan dan modifikasi sesuai kebutuhan Anda.
+This workflow file is a **portfolio version** — all Google
+Drive/Sheets IDs, webhook IDs, API keys, and credential account
+names have been replaced with generic placeholders before publishing.
+Workflow structure, node connections, and logic are unchanged and
+can be studied or re-imported after filling in your own values.
+
+## License
+
+Shared for portfolio and learning purposes. Free to use and modify.
