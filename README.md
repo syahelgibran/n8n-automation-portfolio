@@ -12,7 +12,7 @@ deployable, not just demonstrable.
 | Project | What it does | Stack |
 |---|---|---|
 | [AI CV Screener](./cv-screener-ai/) | Reads incoming CVs, evaluates against job qualifications using an LLM, writes structured results to Sheets. Decision logic is in code — not the AI. | n8n · OpenRouter · LangChain · Google Sheets |
-| [Customer Onboarding Agent](./customer-onboarding-agent/) | Multi-workflow onboarding system for a SaaS POS product. Deterministic daily churn-risk routing plus an inbound RAG agent on WhatsApp. Routing is code; the LLM only writes copy. | n8n · OpenRouter · Supabase pgvector · WhatsApp Cloud API · Telegram |
+| [Customer Onboarding Agent](./customer-onboarding-agent/) | Multi-workflow onboarding system for a SaaS POS product (case study). Deterministic daily churn-risk routing plus an inbound RAG agent on WhatsApp. Routing is code; the LLM only writes copy. | n8n · OpenRouter · Supabase pgvector · WhatsApp Cloud API · Telegram |
 
 ## Tech I work with
 
